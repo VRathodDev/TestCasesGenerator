@@ -1,0 +1,29 @@
+{
+    "ConnectionString": "DSN=Microsoft Hubspot;",
+    "DifferenceFindMode": {
+        "CompareLastTwoRevisions": false,
+        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Jira\\Common\\Maintenance\\1.6\\MDEF\\driver-d.mdef"
+    },
+    "PerforceLocation": {
+        "MDEFLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/MDEF/driver-d.mdef",
+        "TestDefinitionsLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/Tests/TestDefinitions/"
+    },
+    "TestSuite": {
+        "Integration": {
+            "SQL_SELECT_ALL": true,
+            "SQL_PASSDOWN": true
+        },
+        "SP": {
+            "SQL_SP": true
+        },
+        "SQL": {
+            "SQL_AND_OR": true,
+            "SQL_FUNCTION_1TABLE": true,
+            "SQL_GROUP_BY": true,
+            "SQL_IN_BETWEEN": true,
+            "SQL_LIKE": true,
+            "SQL_ORDER_BY": true,
+            "SQL_SELECT_TOP": true
+        }
+    }
+}
