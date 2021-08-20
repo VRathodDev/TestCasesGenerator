@@ -2,10 +2,10 @@
     "ConnectionString": "DSN=Microsoft Hubspot;",
     "DifferenceFindMode": {
         "CompareLastTwoRevisions": false,
-        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Jira\\Common\\Maintenance\\1.6\\MDEF\\driver-d.mdef"
+        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Facebook\\Common\\Maintenance\\1.6\\MDEF\\driver-d.mdef"
     },
     "PerforceLocation": {
-        "MDEFLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/MDEF/driver-d.mdef",
+        "MDEFLocation": "//Drivers/Memphis/DataSources/Facebook/Common/Maintenance/1.6/MDEF/driver-d.mdef",
         "TestDefinitionsLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/Tests/TestDefinitions/"
     },
     "TestSuite": {

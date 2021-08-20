@@ -24,6 +24,12 @@ SQL_LIKE = 'SQL_LIKE'
 SQL_ORDER_BY = 'SQL_ORDER_BY'
 SQL_SELECT_TOP = 'SQL_SELECT_TOP'
 
+# Perfoce Variables
+P4_ROOT = 'P4_ROOT'
+P4USER = 'P4USER'
+P4CLIENT = 'P4CLIENT'
+P4PORT = 'P4PORT'
+
 
 def assure(in_param: dict, in_arg: str, lazy: bool = False):
     if in_param is not None and in_arg in in_param and in_param[in_arg] is not None:
@@ -33,6 +39,10 @@ def assure(in_param: dict, in_arg: str, lazy: bool = False):
             return False
         else:
             raise Exception(f"Invalid Expression: {in_param}[{in_arg}]")
+
+
+def getEnvVariableValue(in_varname: str):
+    return assure(dict(os.environ), in_varname)
 
 
 class InputReader:
@@ -48,13 +58,22 @@ class InputReader:
                 elif assure(in_file[m_DifferenceFindMode], m_ModifiedMDEFLocation) and \
                         len(in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]) > 0:
                     self.inDifferenceFindMode = m_ModifiedMDEFLocation
-                    self.inModifiedMDEFLocation = in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]
+                    if os.path.exists(in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]):
+                        self.inModifiedMDEFLocation = in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]
+                    else:
+                        raise FileNotFoundError(f"{in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]} is not a valid location for {m_ModifiedMDEFLocation}")
 
             if assure(in_file, m_PerforceLocation):
                 if assure(in_file[m_PerforceLocation], m_MDEFLocation) and len(in_file[m_PerforceLocation][m_MDEFLocation]) > 0:
-                    self.inMDEFLocation = in_file[m_PerforceLocation][m_MDEFLocation]
+                    if os.path.exists(getEnvVariableValue(P4_ROOT) + in_file[m_PerforceLocation][m_MDEFLocation]):
+                        self.inMDEFLocation = in_file[m_PerforceLocation][m_MDEFLocation]
+                    else:
+                        raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_MDEFLocation]} is not a valid location for {m_MDEFLocation}")
                 if assure(in_file[m_PerforceLocation], m_TestDefinitionsLocation) and len(in_file[m_PerforceLocation][m_TestDefinitionsLocation]) > 0:
-                    self.inTestDefinitionsLocation = in_file[m_PerforceLocation][m_TestDefinitionsLocation]
+                    if os.path.exists(getEnvVariableValue(P4_ROOT) + in_file[m_PerforceLocation][m_MDEFLocation]):
+                        self.inTestDefinitionsLocation = in_file[m_PerforceLocation][m_TestDefinitionsLocation]
+                    else:
+                        raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_TestDefinitionsLocation]} is not a valid location for {m_TestDefinitionsLocation}")
 
             if assure(in_file, m_TestSuite):
                 self.inRequiredTestSuites = list()
@@ -75,8 +94,11 @@ class InputReader:
     def getMDEFDifferenceFindMode(self):
         return self.inDifferenceFindMode
 
-    def getMDEFLocation(self):
-        return self.inMDEFLocation
+    def getMDEFLocation(self, in_perforce_loc: bool = False):
+        if in_perforce_loc:
+            return self.inMDEFLocation
+        else:
+            return getEnvVariableValue(P4_ROOT) + self.inMDEFLocation
 
     def getModifiedMDEFLocation(self):
         if self.getMDEFDifferenceFindMode() == m_ModifiedMDEFLocation:
@@ -84,8 +106,11 @@ class InputReader:
         else:
             return None
 
-    def getTestDefinitionLocation(self):
-        return self.inTestDefinitionsLocation
+    def getTestDefinitionLocation(self, in_perforce_loc: bool = False):
+        if in_perforce_loc:
+            return self.inTestDefinitionsLocation
+        else:
+            return getEnvVariableValue(P4_ROOT) + self.inTestDefinitionsLocation
 
     def getRequiredTestSuites(self):
         return self.inRequiredTestSuites
