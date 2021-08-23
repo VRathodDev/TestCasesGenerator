@@ -2,12 +2,18 @@ import json
 import os
 import subprocess
 from shutil import copytree, copy, move, rmtree
-from InputReader import assure, InputReader, m_ModifiedMDEFLocation, m_CompareLastTwoRevisions, P4USER, P4_ROOT, P4PORT, P4CLIENT, getEnvVariableValue
+from InputReader import assure, InputReader, m_ModifiedMDEFLocation, m_CompareTwoRevisions, P4USER, P4_ROOT, P4PORT, P4CLIENT, getEnvVariableValue
 
 # Global Variables
 m_TouchStoneAssets = ['Touchstone.exe', 'sbicudt58_64.dll', 'sbicuuc58d_64.dll']
-m_DeleteFolder = 'Delete'
+m_DeleteFolder = '.ignore'
 m_OutputFolder = 'Output'
+m_EnvsFolder = 'Envs'
+m_TestEnv = 'TestEnv.xml'
+m_TestSuite = 'TestSuite.xml'
+m_TestFilesExtension = '.xml'
+m_TestSets = 'TestSets'
+m_ResultSets = 'ResultSets'
 TOUCHSTONE_DIR = getEnvVariableValue('TOUCHSTONE_DIR')
 
 
@@ -41,6 +47,7 @@ def _copyFilesInDir(in_src_dir_path: str, in_dest_dir_path: str, in_files: list)
             return False
     else:
         return False
+
 
 class MDEF:
 
@@ -184,6 +191,66 @@ class MDEF:
                     self.parseVirtualTables(virtual_table, in_mdef_tables, with_column)
 
 
+class TestWriter:
+
+    @staticmethod
+    def writeTestEnv(in_test_env_loc: str, in_conn_str: str):
+        """
+        Prepares the Test Env File at the specified location
+        :param in_test_env_loc: Location to write Test Environment File
+        :param in_conn_str: Connection String
+        :return: Returns True if written successfully else False
+        """
+        if os.path.exists(in_test_env_loc):
+            if len(in_conn_str) > 0:
+                with open(os.path.join(in_test_env_loc, m_TestEnv), 'w') as file:
+                    file.write('<?xml version="1.0" encoding="utf-8"?>\n')
+                    file.write('<TestEnvironment>\n')
+                    file.write(f"\t<ConnectionString>{in_conn_str}</ConnectionString>\n")
+                    file.write('\t<_Monitor>\n')
+                    file.write('\t\t<GenerateResults>true</GenerateResults>\n')
+                    file.write('\t\t<timeout>20</timeout>\n')
+                    file.write('\t\t<maxConsecutiveTimeout>15</maxConsecutiveTimeout>\n')
+                    file.write('\t\t<maxAccumulatedTimeout>50</maxAccumulatedTimeout>\n')
+                    file.write('\t</_Monitor>\n')
+                    file.write('\t<SqlWcharEncoding>UTF-32</SqlWcharEncoding>\n')
+                    file.write('</TestEnvironment>')
+                return True
+            else:
+                print('Error: Empty Connection String passed')
+                return False
+        else:
+            print('Error: Incorrect Test Env Location')
+            return False
+
+    @staticmethod
+    def writeTestSuites(in_required_testsuites: dict):
+        """
+        Prepares Testsuite Folders and writes `TestSuite.xml` within the folder
+        :param in_required_testsuites: A Dictionary having Testsuite as a key and list of test-sets as value
+        :return: Returns True if written successfully else False
+        """
+        output_folder_loc = os.path.abspath(m_OutputFolder)
+        if os.path.exists(output_folder_loc):
+            for test_suite, test_sets in in_required_testsuites.items():
+                with open(os.path.join(os.path.join(output_folder_loc, test_suite), m_TestSuite), 'w') as file:
+                    file.write('<TestSuite Name="SQL Test">\n')
+                    for test_set in test_sets:
+                        file.write(f"\t<TestSet Name=\"{test_set}\" SetFile=\"{test_suite}/TestSets/{test_set}{m_TestFilesExtension}\">\n")
+                        file.write('\t\t<!--\n')
+                        file.write('\t\t<Exclusion StartID="6" EndID="6">Exclusion reason</Exclusion>\n')
+                        file.write('\t\t<Ignorable StartID="6" EndID="6">Ignorable reason</Ignorable>\n')
+                        file.write('\t\t-->\n')
+                        file.write('\t</TestSet>\n')
+                    file.write('\t<GenerateResults>true</GenerateResults>\n')
+                    file.write(f"\t<BaselineDirectory>{test_suite}\\ResultSets</BaselineDirectory>\n")
+                    file.write('</TestSuite>')
+            return True
+        else:
+            print('Error: Incorrect Test Suite Location')
+            return False
+
+
 class PerforceUtility:
     def __init__(self):
         try:
@@ -223,7 +290,7 @@ class PerforceUtility:
         :return: Returns latest revision number of the specified file
         """
         if os.path.exists(in_file_path):
-            output = subprocess.check_output(f"p4.exe files {os.path.abspath(in_file_path)}").decode().split('-')[0]
+            output = subprocess.check_output(f"p4.exe files {os.path.abspath(in_file_path)}").decode().split(' - ')[0]
             file_name = os.path.basename(os.path.abspath(in_file_path))
             index = output.find(file_name + '#') + len(file_name) + 1
             return int(output[index:])
@@ -237,21 +304,36 @@ class TestSetGenerator:
         self.inMDEFToGenerateTests = None
 
     def run(self):
-        if self.setupOutputFolder():
+        if self.setupTestFolders(self.inputFile.getRequiredTestSuites()):
             mdef_diff = self.findMDEFDifference()
             if mdef_diff is not None:
-                pass
+                print(mdef_diff)
 
     def findMDEFDifference(self):
         mdef_diff_mode = self.inputFile.getMDEFDifferenceFindMode()
-        if mdef_diff_mode == m_CompareLastTwoRevisions:
+        if mdef_diff_mode == m_CompareTwoRevisions:
+            latest_mdef, older_mdef = None, None
             mdef_loc = self.inputFile.getMDEFLocation()
-            latest_mdef_revision_num = PerforceUtility.getLatestRevisionNumber(mdef_loc)
-            older_mdef_loc = PerforceUtility.getRevision(mdef_loc, latest_mdef_revision_num - 1)
-            older_mdef = MDEF(older_mdef_loc) if older_mdef_loc is not None else None
-            latest_mdef_loc = PerforceUtility.getRevision(mdef_loc)
-            latest_mdef = MDEF(latest_mdef_loc) if latest_mdef_loc is not None else None
-            return MDEF(in_file_content=latest_mdef.findDifference(older_mdef), with_columns=True)
+            older_mdef_rev = self.inputFile.getOlderMDEFRevision()
+            newer_mdef_rev = self.inputFile.getNewerMDEFRevision()
+            if older_mdef_rev is not None and newer_mdef_rev is not None:
+                older_mdef_loc = PerforceUtility.getRevision(mdef_loc, older_mdef_rev)
+                older_mdef = MDEF(older_mdef_loc) if older_mdef_loc is not None else None
+                newer_mdef_loc = PerforceUtility.getRevision(mdef_loc, newer_mdef_rev)
+                newer_mdef = MDEF(newer_mdef_loc) if newer_mdef_loc is not None else None
+                mdef_diff = newer_mdef.findDifference(older_mdef)
+            else:
+                latest_mdef_revision_num = PerforceUtility.getLatestRevisionNumber(mdef_loc)
+                older_mdef_loc = PerforceUtility.getRevision(mdef_loc, latest_mdef_revision_num - 1)
+                older_mdef = MDEF(older_mdef_loc) if older_mdef_loc is not None else None
+                latest_mdef_loc = PerforceUtility.getRevision(mdef_loc)
+                latest_mdef = MDEF(latest_mdef_loc) if latest_mdef_loc is not None else None
+                mdef_diff = latest_mdef.findDifference(older_mdef)
+            if mdef_diff is not None:
+                return MDEF(in_file_content=mdef_diff, with_columns=True)
+            else:
+                print('No Difference found between the specified version of MDEF')
+                return None
         else:
             modifed_mdef_loc = self.inputFile.getModifiedMDEFLocation()
             if modifed_mdef_loc is not None:
@@ -262,8 +344,12 @@ class TestSetGenerator:
                     latest_mdef_loc = PerforceUtility.getRevision(self.inputFile.getMDEFLocation())
                     latest_mdef = MDEF(latest_mdef_loc) if latest_mdef_loc is not None else None
                 modifed_mdef = MDEF(modifed_mdef_loc)
-                mdef_diff = MDEF(in_file_content=modifed_mdef.findDifference(latest_mdef), with_columns=True)
-                return mdef_diff
+                mdef_diff = modifed_mdef.findDifference(latest_mdef)
+                if mdef_diff is not None:
+                    return MDEF(in_file_content=mdef_diff, with_columns=True)
+                else:
+                    print('No Difference found between the specified version of MDEF')
+                    return None
             else:
                 raise Exception(f"{m_ModifiedMDEFLocation} is an invalid value! Provide a correct one.")
 
@@ -282,6 +368,32 @@ class TestSetGenerator:
             except PermissionError as e:
                 print(e)
                 return False
+
+    def setupTestFolders(self, in_required_testsuites: dict):
+        """
+        Prepares Envs & TestSuites' Folder
+        :param in_required_testsuites: A Dictionary having Testsuite as a key and list of test-sets as value
+        :return: Returns True if succeeded else False
+        """
+        if self.setupOutputFolder():
+            output_folder_path = os.path.abspath(m_OutputFolder)
+            envs_folder_path = os.path.abspath(os.path.join(output_folder_path, m_EnvsFolder))
+            if os.path.exists(envs_folder_path):
+                rmtree(envs_folder_path)
+            os.mkdir(envs_folder_path)
+            if TestWriter.writeTestEnv(envs_folder_path, self.inputFile.getConnectionString()):
+                for test_suite in in_required_testsuites.keys():
+                    curr_test_suite_path = os.path.abspath(os.path.join(output_folder_path, test_suite))
+                    if os.path.exists(curr_test_suite_path):
+                        rmtree(curr_test_suite_path)
+                    os.mkdir(curr_test_suite_path)
+                    os.mkdir(os.path.join(curr_test_suite_path, m_TestSets))
+                    os.mkdir(os.path.join(curr_test_suite_path, m_ResultSets))
+                return TestWriter.writeTestSuites(in_required_testsuites)
+            else:
+                return False
+        else:
+            return False
 
 
 class ResultSetGenerator:

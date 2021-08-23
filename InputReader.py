@@ -4,7 +4,7 @@ import os
 # Global Variable
 m_ConnectionString = 'ConnectionString'
 m_DifferenceFindMode = 'DifferenceFindMode'
-m_CompareLastTwoRevisions = 'CompareLastTwoRevisions'
+m_CompareTwoRevisions = 'CompareTwoRevisions'
 m_ModifiedMDEFLocation = 'ModifiedMDEFLocation'
 m_PerforceLocation = 'PerforceLocation'
 m_MDEFLocation = 'MDEFLocation'
@@ -52,9 +52,19 @@ class InputReader:
                 in_file = json.load(file)
             self.inConnectionString = assure(in_file, m_ConnectionString)
             if assure(in_file, m_DifferenceFindMode):
-                if assure(in_file[m_DifferenceFindMode], m_CompareLastTwoRevisions) and \
-                        in_file[m_DifferenceFindMode][m_CompareLastTwoRevisions]:
-                    self.inDifferenceFindMode = m_CompareLastTwoRevisions
+                if assure(in_file[m_DifferenceFindMode], m_CompareTwoRevisions) and \
+                        (len(in_file[m_DifferenceFindMode][m_CompareTwoRevisions]) == 2 or
+                         len(in_file[m_DifferenceFindMode][m_CompareTwoRevisions]) == 0):
+                    self.inDifferenceFindMode = m_CompareTwoRevisions
+                    if in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0] < in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]:
+                        self.inOlderMDEFVersion = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0]
+                        self.inNewerMDEFVersion = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]
+                    elif in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0] > in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]:
+                        self.inOlderMDEFVersion = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]
+                        self.inNewerMDEFVersion = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0]
+                    else:
+                        raise Exception('Error: Invalid Values for `CompareTwoRevisions`. MDEF Revision Numbers must '
+                                        'be different.')
                 elif assure(in_file[m_DifferenceFindMode], m_ModifiedMDEFLocation) and \
                         len(in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]) > 0:
                     self.inDifferenceFindMode = m_ModifiedMDEFLocation
@@ -76,20 +86,24 @@ class InputReader:
                         raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_TestDefinitionsLocation]} is not a valid location for {m_TestDefinitionsLocation}")
 
             if assure(in_file, m_TestSuite):
-                self.inRequiredTestSuites = list()
+                self.inRequiredTestSuites = dict()
                 for test_suite in in_file[m_TestSuite]:
                     required_test_sets = list()
                     for test_set, is_required in in_file[m_TestSuite][test_suite].items():
                         if is_required:
                             required_test_sets.append(test_set)
-                    self.inRequiredTestSuites.append({
-                        test_suite: required_test_sets
-                    })
+                    self.inRequiredTestSuites[test_suite] = required_test_sets
         else:
             raise FileNotFoundError(f"{in_filepath} not found")
 
     def getConnectionString(self):
         return self.inConnectionString
+
+    def getOlderMDEFRevision(self):
+        return self.inOlderMDEFVersion if self.inOlderMDEFVersion > 0 else None
+
+    def getNewerMDEFRevision(self):
+        return self.inNewerMDEFVersion if self.inNewerMDEFVersion > 0 else None
 
     def getMDEFDifferenceFindMode(self):
         return self.inDifferenceFindMode
