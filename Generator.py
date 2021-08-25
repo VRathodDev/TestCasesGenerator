@@ -2,10 +2,13 @@ import json
 import os
 import subprocess
 from shutil import copytree, copy, move, rmtree
+import xml.etree.ElementTree as ET
 from InputReader import assure, InputReader, m_ModifiedMDEFLocation, m_CompareTwoRevisions, P4USER, P4_ROOT, P4PORT, P4CLIENT, getEnvVariableValue
 
 # Global Variables
 m_TouchStoneAssets = ['Touchstone.exe', 'sbicudt58_64.dll', 'sbicuuc58d_64.dll']
+m_TouchStone = 'Touchstone.exe'
+m_TouchStoneOutput = 'TouchStoneOutput'
 m_DeleteFolder = '.ignore'
 m_OutputFolder = 'Output'
 m_EnvsFolder = 'Envs'
@@ -15,6 +18,19 @@ m_TestFilesExtension = '.xml'
 m_TestSets = 'TestSets'
 m_ResultSets = 'ResultSets'
 TOUCHSTONE_DIR = getEnvVariableValue('TOUCHSTONE_DIR')
+m_Integration = 'Integration'
+m_SP = 'SP'
+m_SQL = 'SQL'
+SQL_SELECT_ALL = 'SQL_SELECT_ALL'
+SQL_PASSDOWN = 'SQL_PASSDOWN'
+SQL_SP = 'SQL_SP'
+SQL_AND_OR = 'SQL_AND_OR'
+SQL_FUNCTION_1TABLE = 'SQL_FUNCTION_1TABLE'
+SQL_GROUP_BY = 'SQL_GROUP_BY'
+SQL_IN_BETWEEN = 'SQL_IN_BETWEEN'
+SQL_LIKE = 'SQL_LIKE'
+SQL_ORDER_BY = 'SQL_ORDER_BY'
+SQL_SELECT_TOP = 'SQL_SELECT_TOP'
 
 
 def _checkFilesInDir(in_dir_path: str, in_files: list):
@@ -66,6 +82,7 @@ class MDEF:
     m_VirtualTables = 'VirtualTables'
     m_ResultTable = 'ResultTable'
     m_ParentColumn = 'ParentColumn'
+    m_Passdownable = 'Passdownable'
 
     def __init__(self, in_filepath: str = None, with_columns: bool = False, in_file_content: dict = None):
         if in_filepath is not None:
@@ -73,7 +90,7 @@ class MDEF:
                 with open(in_filepath, 'r') as file:
                     self.inMDEFPath = in_filepath
                     self.inMDEFContent = json.load(file)
-                    self.inTableNames = list()
+                    self.inTableNames = dict()
                     self.inVirtualTableNames = list()
                     self.inMDEFStoredProcedures = self.parseStoredProcedures(with_columns)
                     self.inTables = self.parseTables(with_columns)
@@ -83,7 +100,7 @@ class MDEF:
             if in_file_content is not None:
                 self.inMDEFPath = None
                 self.inMDEFContent = in_file_content
-                self.inTableNames = list()
+                self.inTableNames = dict()
                 self.inVirtualTableNames = list()
                 self.inMDEFStoredProcedures = self.parseStoredProcedures(with_columns)
                 self.inTables = self.parseTables(with_columns)
@@ -145,13 +162,15 @@ class MDEF:
                 if assure(table, MDEF.m_TableName) in mdef_tables:
                     raise Exception(f"Error: {self.inMDEFPath} contains more than one table with name {table[MDEF.m_TableName]}")
                 else:
-                    columns = list()
+                    columns = dict()
+                    passdownable_columns = list()
                     if with_column:
                         if len(assure(table, MDEF.m_Columns)) > 0:
                             for column in table[MDEF.m_Columns]:
-                                columns.append({
-                                    assure(column, MDEF.m_Name): assure(column[MDEF.m_MetaData], MDEF.m_SQLType) if assure(column, MDEF.m_MetaData) else None
-                                })
+                                if assure(column, MDEF.m_Passdownable):
+                                    passdownable_columns.append(assure(column, MDEF.m_Name))
+                                columns[assure(column, MDEF.m_Name)] = assure(column[MDEF.m_MetaData], MDEF.m_SQLType) \
+                                    if assure(column, MDEF.m_MetaData) else None
                     if assure(table, MDEF.m_APIAccess):
                         api_accesses = list()
                         for api_access in table[MDEF.m_APIAccess]:
@@ -165,7 +184,8 @@ class MDEF:
                             MDEF.m_Columns: columns,
                             MDEF.m_APIAccess: api_accesses
                         })
-                        self.inTableNames.append(table[MDEF.m_TableName])
+                        self.inTableNames[table[MDEF.m_TableName]] = passdownable_columns \
+                            if len(passdownable_columns) > 0 else None
                     self.parseVirtualTables(table, mdef_tables, with_column)
             return mdef_tables
 
@@ -175,13 +195,12 @@ class MDEF:
                 if assure(virtual_table, MDEF.m_TableName) in in_mdef_tables:
                     raise Exception(f"Error: {self.inMDEFPath} contains more than one table with name {virtual_table[MDEF.m_TableName]}")
                 else:
-                    columns = list()
+                    columns = dict()
                     if with_column and len(assure(virtual_table, MDEF.m_Columns)) > 0:
                         for column in virtual_table[MDEF.m_Columns]:
                             if MDEF.m_ParentColumn not in column:
-                                columns.append({
-                                    assure(column, MDEF.m_Name): assure(column[MDEF.m_MetaData], MDEF.m_SQLType) if assure(column, MDEF.m_MetaData) else None
-                                })
+                                columns[assure(column, MDEF.m_Name)] = assure(column[MDEF.m_MetaData], MDEF.m_SQLType) \
+                                    if assure(column, MDEF.m_MetaData) else None
                     in_mdef_tables.append({
                         MDEF.m_Name: virtual_table[MDEF.m_TableName],
                         MDEF.m_Columns: columns,
@@ -250,6 +269,84 @@ class TestWriter:
             print('Error: Incorrect Test Suite Location')
             return False
 
+    @staticmethod
+    def writeTestSets(in_required_testsuites: dict, in_mdef_diff: MDEF, only_select_all: bool = False):
+        """
+        Prepares required TestSets for given Testsuites
+        :param only_select_all: A Flag to only generate test sets for SQL_SELECT_ALL
+        :param in_mdef_diff: MDEF Instance
+        :param in_required_testsuites: A Dictionary having Testsuite as a key and list of test-sets as value
+        :return: Returns True if written successfully else False
+        """
+        if len(in_required_testsuites) > 0:
+            for test_suite, test_sets in in_required_testsuites.items():
+                had_failure = False
+                for test_set, starting_id in test_sets.items():
+                    if test_set == SQL_SELECT_ALL:
+                        if not TestWriter.writeSelectAllTestSets(test_suite, in_mdef_diff, starting_id):
+                            had_failure = True
+                            break
+                        elif only_select_all:
+                            return True
+                    elif test_set == SQL_PASSDOWN:
+                        pass
+                return not had_failure
+        else:
+            print('Error: No Test-Suites selected to prepare')
+            return False
+
+    @staticmethod
+    def writeSelectAllTestSets(in_test_suite: str, in_mdef_diff: MDEF, in_starting_id: int = 1):
+        """
+        Prepares Test Set for SQL_SELECT_All
+        :param in_starting_id: Starting Id of the test-set to write testcases further
+        :param in_test_suite: Name of associated Testsuite
+        :param in_mdef_diff: Difference of MDEFs as MDEF Instance
+        :return: Returns True if all `SQL_SELECT_All` generated successfully else False
+        """
+        if len(in_test_suite) == 0 or in_mdef_diff is None:
+            return False
+        else:
+            test_set_path = os.path.abspath(os.path.join(os.path.join(m_OutputFolder, in_test_suite), m_TestSets))
+            if os.path.exists(test_set_path):
+                with open(os.path.join(test_set_path, SQL_SELECT_ALL + m_TestFilesExtension), 'w') as file:
+                    file.write(f"<TestSet Name=\"{SQL_SELECT_ALL}\" JavaClass=\"com.simba.testframework.testcases"
+                               f".jdbc.resultvalidation.SqlTester\" dotNetClass=\"SqlTester\">\n")
+                    for table in in_mdef_diff.inTables:
+                        query = f"SELECT * FROM {table[MDEF.m_Name]}"
+                        in_starting_id += 1 if TestWriter._writeQuery(file, query, in_starting_id) else 0
+                    file.write('</TestSet>')
+                return True
+            else:
+                print(f"Error: {m_OutputFolder} is incorrectly setup")
+                return False
+
+    @staticmethod
+    def writeSQLPassdownTestsets(in_test_suite: str, in_mdef_diff: MDEF, in_starting_id: int = 1):
+        """
+        Prepares Test Set for SQL_PASSDOWN
+        :param in_starting_id: Starting Id of the test-set to write testcases further
+        :param in_test_suite: Name of associated Testsuite
+        :param in_mdef_diff: Difference of MDEFs as MDEF Instance
+        :return: Returns True if all `SQL_PASSDOWN` generated successfully else False
+        """
+        if len(in_test_suite) == 0 or in_mdef_diff is None:
+            return False
+        else:
+            pass
+
+    @staticmethod
+    def _writeQuery(file, in_query: str, in_id: int = 1):
+        if len(in_query) > 0:
+            file.write(f"\t<Test Name=\"SQL_QUERY\" JavaMethod=\"testSqlQuery\" dotNetMethod=\"TestSqlQuery\" ID=\"{in_id}\">\n")
+            file.write(f"\t\t<SQL><![CDATA[{in_query}]]></SQL>\n")
+            file.write('\t\t<ValidateColumns>True</ValidateColumns>\n')
+            file.write('\t\t<ValidateNumericExactly>True</ValidateNumericExactly>\n')
+            file.write('\t</Test>\n')
+            return True
+        else:
+            return False
+
 
 class PerforceUtility:
     def __init__(self):
@@ -304,10 +401,14 @@ class TestSetGenerator:
         self.inMDEFToGenerateTests = None
 
     def run(self):
-        if self.setupTestFolders(self.inputFile.getRequiredTestSuites()):
+        required_testsuites = self.inputFile.getRequiredTestSuites()
+        if self.setupTestFolders(required_testsuites):
             mdef_diff = self.findMDEFDifference()
             if mdef_diff is not None:
-                print(mdef_diff)
+                if TestWriter.writeTestSets(required_testsuites, mdef_diff, only_select_all=True):
+                    if ResultSetGenerator.executeTestSuite(m_Integration, SQL_SELECT_ALL):
+                        table_column_values = ResultSetGenerator.parseResultSets(mdef_diff, required_testsuites[m_Integration][SQL_SELECT_ALL])
+                        print(table_column_values)
 
     def findMDEFDifference(self):
         mdef_diff_mode = self.inputFile.getMDEFDifferenceFindMode()
@@ -402,3 +503,73 @@ class ResultSetGenerator:
 
     def run(self):
         pass
+
+    @staticmethod
+    def executeTestSuite(in_test_suite: str, with_specific_testset: str = None):
+        """
+        Runs Touchstone test for given testsuite
+        :param with_specific_testset: Name of test-set to run Touchstone for that particular test-set only
+        :param in_test_suite: Name of the Testsuite
+        :return: Returns None
+        """
+        if len(in_test_suite) > 0:
+            touchstone_cmd = f"{m_TouchStone} -te {m_EnvsFolder}\\{m_TestEnv} -ts {in_test_suite}\\{m_TestSuite} " \
+                             f"-o {in_test_suite}"
+            if with_specific_testset is not None and len(with_specific_testset) > 0:
+                touchstone_cmd += f" -rts {with_specific_testset}"
+            with open('exec.bat', 'w') as file:
+                file.write(f"cd {m_OutputFolder}\n")
+                file.write(touchstone_cmd)
+            subprocess.call('exec.bat')
+            os.remove('exec.bat')
+            return True if len(os.listdir(os.path.join(os.path.join(m_OutputFolder, m_Integration), m_ResultSets))) > 0 \
+                else False
+        else:
+            print('Error: Invalid Testsuite Name')
+
+    @staticmethod
+    def parseResultSets(in_mdef_diff: MDEF, in_starting_id: int = 1):
+        """
+        Parses the Resultsets generated and maps to its relevant columns
+        :param in_mdef_diff: MDEF Difference as MDEF Instance
+        :param in_starting_id: Starting Testcase Id for `SQL_SELECT_ALL` Testset
+        :return: Returns Table Columns Values Mapping
+        """
+        if in_mdef_diff is not None:
+            resultsets_path = os.path.abspath(os.path.join(os.path.join(m_OutputFolder, m_Integration), m_ResultSets))
+            total_resultsets = len(in_mdef_diff.inTableNames)
+            etree = None
+            table_column_values = dict()
+            for test_case_id in range(in_starting_id, in_starting_id + total_resultsets):
+                if os.path.exists(os.path.join(resultsets_path, f"{SQL_SELECT_ALL}-SQL_QUERY-{test_case_id}{m_TestFilesExtension}")):
+                    invalid_row_desc = True
+                    row_count = 0
+                    with open(os.path.abspath(os.path.join(resultsets_path, f"{SQL_SELECT_ALL}-SQL_QUERY-{test_case_id}{m_TestFilesExtension}"))) as file:
+                        etree = ET.fromstring(file.read())
+                        row_descriptions = None
+                        for child in etree.iter('RowDescriptions'):
+                            row_descriptions = child
+                            invalid_row_desc = not invalid_row_desc
+                            row_count = int(child.attrib.get('RowCount'))
+                        if invalid_row_desc:
+                            print('More than one RowDescriptions found in the resultset')
+                            return None
+                        if row_count > 0:
+                            curr_table_name = in_mdef_diff.inTables[test_case_id-in_starting_id][MDEF.m_Name]
+                            table_column_values[curr_table_name] = dict()
+                            column_count = 0
+                            for column in etree.iter('Name'):
+                                column_count += 1
+                                column_name = column.text
+                                table_column_values[curr_table_name][column_name] = list()
+                                if column_name in in_mdef_diff.inTables[test_case_id-in_starting_id][MDEF.m_Columns]:
+                                    for i in range(1, row_count + 1):
+                                        column_value = row_descriptions[i - 1][column_count - 1]
+                                        if not assure(column_value.attrib, 'IsNull', lazy=True):
+                                            table_column_values[curr_table_name][column_name].append(column_value.text)
+                                else:
+                                    print('Error: Column Name mismatched')
+                                    return None
+                else:
+                    return None
+            return table_column_values

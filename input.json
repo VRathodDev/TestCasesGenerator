@@ -10,20 +10,20 @@
     },
     "TestSuite": {
         "Integration": {
-            "SQL_SELECT_ALL": true,
-            "SQL_PASSDOWN": true
+            "SQL_SELECT_ALL": 11,
+            "SQL_PASSDOWN": 32
         },
         "SP": {
-            "SQL_SP": true
+            "SQL_SP": 32
         },
         "SQL": {
-            "SQL_AND_OR": true,
-            "SQL_FUNCTION_1TABLE": true,
-            "SQL_GROUP_BY": true,
-            "SQL_IN_BETWEEN": true,
-            "SQL_LIKE": true,
-            "SQL_ORDER_BY": true,
-            "SQL_SELECT_TOP": true
+            "SQL_AND_OR": 4,
+            "SQL_FUNCTION_1TABLE": 12,
+            "SQL_GROUP_BY": 5,
+            "SQL_IN_BETWEEN": 9,
+            "SQL_LIKE": 10,
+            "SQL_ORDER_BY": 11,
+            "SQL_SELECT_TOP": 12
         }
     }
 }

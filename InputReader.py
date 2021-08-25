@@ -10,19 +10,6 @@ m_PerforceLocation = 'PerforceLocation'
 m_MDEFLocation = 'MDEFLocation'
 m_TestDefinitionsLocation = 'TestDefinitionsLocation'
 m_TestSuite = 'TestSuite'
-m_Integration = 'Integration'
-m_SP = 'SP'
-m_SQL = 'SQL'
-SQL_SELECT_ALL = 'SQL_SELECT_ALL'
-SQL_PASSDOWN = 'SQL_PASSDOWN'
-SQL_SP = 'SQL_SP'
-SQL_AND_OR = 'SQL_AND_OR'
-SQL_FUNCTION_1TABLE = 'SQL_FUNCTION_1TABLE'
-SQL_GROUP_BY = 'SQL_GROUP_BY'
-SQL_IN_BETWEEN = 'SQL_IN_BETWEEN'
-SQL_LIKE = 'SQL_LIKE'
-SQL_ORDER_BY = 'SQL_ORDER_BY'
-SQL_SELECT_TOP = 'SQL_SELECT_TOP'
 
 # Perfoce Variables
 P4_ROOT = 'P4_ROOT'
@@ -88,10 +75,10 @@ class InputReader:
             if assure(in_file, m_TestSuite):
                 self.inRequiredTestSuites = dict()
                 for test_suite in in_file[m_TestSuite]:
-                    required_test_sets = list()
-                    for test_set, is_required in in_file[m_TestSuite][test_suite].items():
-                        if is_required:
-                            required_test_sets.append(test_set)
+                    required_test_sets = dict()
+                    for test_set, starting_id in in_file[m_TestSuite][test_suite].items():
+                        if starting_id > 0:
+                            required_test_sets[test_set] = starting_id
                     self.inRequiredTestSuites[test_suite] = required_test_sets
         else:
             raise FileNotFoundError(f"{in_filepath} not found")
