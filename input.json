@@ -1,12 +1,12 @@
 {
-    "ConnectionString": "DSN=Microsoft Hubspot;",
+    "ConnectionString": "DSN=IBM Facebook;",
     "DifferenceFindMode": {
-        "CompareTwoRevisions": [16, 15],
-        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Hubspot\\Common\\Maintenance\\1.6\\MDEF\\driver-d.mdef"
+        "CompareTwoRevisions": [20, 21],
+        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Facebook\\Common\\Maintenance\\1.6\\MDEF\\driver-d.mdef"
     },
     "PerforceLocation": {
-        "MDEFLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/MDEF/driver-d.mdef",
-        "TestDefinitionsLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/Tests/TestDefinitions/"
+        "MDEFLocation": "//Drivers/Memphis/DataSources/Facebook/Common/Maintenance/1.6/MDEF/driver-d.mdef",
+        "TestDefinitionsLocation": "//Drivers/Memphis/DataSources/Facebook/Common/Maintenance/1.6/Tests/TestDefinitions/"
     },
     "TestSuite": {
         "Integration": {
