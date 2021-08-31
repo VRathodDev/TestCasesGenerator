@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import subprocess
 from shutil import copytree, copy, move, rmtree
 import xml.etree.ElementTree as ET
@@ -288,6 +289,7 @@ class TestWriter:
                       in_table_column_values: dict = None):
         """
         Prepares required TestSets for given Testsuites
+        :param in_table_column_values: Table Column Values Mapping
         :param only_select_all: A Flag to only generate test sets for SQL_SELECT_ALL
         :param in_mdef_diff: MDEF Instance
         :param in_required_testsuites: A Dictionary having Testsuite as a key and list of test-sets as value
@@ -304,12 +306,18 @@ class TestWriter:
                     for test_set, starting_id in test_sets.items():
                         if test_set == SQL_SELECT_ALL and only_select_all:
                             return TestWriter.writeSelectAllTestSets(test_suite, in_mdef_diff, starting_id)
-                        elif test_set == SQL_PASSDOWN:
-                            had_failure = not TestWriter.writeSQLPassdownTestsets(test_suite, in_mdef_diff,
-                                                                                  in_table_column_values, starting_id)
+                        # elif test_set == SQL_PASSDOWN:
+                        #     had_failure = not TestWriter.writeSQLPassdownTestsets(test_suite, in_mdef_diff,
+                        #                                                           in_table_column_values, starting_id)
                         elif test_set == SQL_SELECT_TOP:
-                            had_failure = not TestWriter.writeSQLSelectTopTestsets(test_suite, in_mdef_diff,
+                            had_failure = not TestWriter.writeSQLSelectTopTestsets(test_suite,
                                                                                    in_table_column_values, starting_id)
+                        elif test_set == SQL_AND_OR:
+                            had_failure = not TestWriter.writeSQLAndOrTestsets(test_suite,
+                                                                               in_table_column_values, starting_id)
+                        elif test_set == SQL_ORDER_BY:
+                            had_failure = not TestWriter.writeSQLOrderByTestsets(test_suite,
+                                                                                 in_table_column_values, starting_id)
                         if had_failure:
                             print(f"Error: Generation of {test_set} for {test_suite} failed")
                             break
@@ -328,6 +336,7 @@ class TestWriter:
         :return: Returns True if all `SQL_SELECT_All` generated successfully else False
         """
         if len(in_test_suite) == 0 or in_mdef_diff is None:
+            print('Error: Invalid Parameters')
             return False
         else:
             queries = list()
@@ -347,6 +356,7 @@ class TestWriter:
         :return: Returns True if all `SQL_PASSDOWN` generated successfully else False
         """
         if len(in_test_suite) == 0 or in_mdef_diff is None or in_table_column_values is None:
+            print('Error: Invalid Parameters')
             return False
         else:
             queries = list()
@@ -370,20 +380,75 @@ class TestWriter:
             return TestWriter._prepareTestSet(in_test_suite, SQL_PASSDOWN, queries, in_starting_id)
 
     @staticmethod
-    def writeSQLSelectTopTestsets(in_test_suite: str, in_mdef_diff: MDEF, in_table_column_values: dict,
+    def writeSQLSelectTopTestsets(in_test_suite: str, in_table_column_values: dict,
                                   in_starting_id: int = 1):
-        if len(in_test_suite) > 0 and in_mdef_diff is not None and in_table_column_values is not None:
-            table_index = 0
+        if len(in_test_suite) > 0 and in_table_column_values is not None:
             queries = list()
             for table_name, columns in in_table_column_values.items():
-                column_len = len(columns)
-                if table_name in in_mdef_diff.inTables and column_len > 0:
-                    queries.append(f"SELECT TOP {column_len % 25} * FROM {table_name} ORDER BY {columns[0]}")
+                row_count = max(list(map(len, columns.values())))
+                if row_count > 0:
+                    for column_name in columns:
+                        if random.randint(0, 50) % 2 == 0:
+                            queries.append(f"SELECT TOP {row_count % 25} * FROM {table_name} ORDER BY {column_name}")
+                        else:
+                            queries.append(f"SELECT TOP {row_count % 25} {column_name} FROM {table_name} ORDER BY {column_name}")
+                        break
                 else:
-                    print(f"Error: {table_name} not found in MDEF Difference Instance")
+                    print(f"Error: Columns for {table_name} could not be parsed correctly from the Resultsets")
                     return False
             return TestWriter._prepareTestSet(in_test_suite, SQL_SELECT_TOP, queries, in_starting_id)
         else:
+            print('Error: Invalid Parameters')
+            return False
+
+    @staticmethod
+    def writeSQLAndOrTestsets(in_test_suite: str, in_table_column_values: dict,
+                              in_starting_id: int = 1):
+        if len(in_test_suite) > 0 and in_table_column_values is not None:
+            queries = list()
+            index = 0
+            for table_name, columns in in_table_column_values.items():
+                queryCompleted = True
+                if len(columns) > 0:
+                    query = f"SELECT * FROM {table_name} WHERE "
+                    for column_name, column_values in columns.items():
+                        if len(column_values) >= 2:
+                            query += f"{column_name}={column_values[0]} "
+                            queryCompleted = not queryCompleted
+                            if queryCompleted:
+                                queries.append(query)
+                                break
+                            else:
+                                if index % 2 == 0:
+                                    query += 'AND '
+                                else:
+                                    query += 'OR '
+                    index += 1
+            return TestWriter._prepareTestSet(in_test_suite, SQL_AND_OR, queries, in_starting_id)
+        else:
+            print('Error: Invalid Parameters')
+            return False
+
+    @staticmethod
+    def writeSQLOrderByTestsets(in_test_suite: str, in_table_column_values: dict,
+                              in_starting_id: int = 1):
+        if len(in_test_suite) > 0 and in_table_column_values is not None:
+            queries = list()
+            for table_name, columns in in_table_column_values.items():
+                columns_len = len(columns)
+                required_col_index = random.randrange(0, (columns_len % 10) - 1) if columns_len % 10 == 0 else 0
+                index = 0
+                if columns_len > 0:
+                    for column_name, column_values in columns.items():
+                        if required_col_index == index:
+                            if random.randint(0, 5) % 2 == 0:
+                                queries.append(f"SELECT * FROM {table_name} ORDER BY {column_name}")
+                            else:
+                                queries.append(f"SELECT {column_name} FROM {table_name} ORDER BY {column_name}")
+                        index += 1
+            return TestWriter._prepareTestSet(in_test_suite, SQL_ORDER_BY, queries, in_starting_id)
+        else:
+            print('Error: Invalid Parameters')
             return False
 
     @staticmethod
@@ -476,7 +541,7 @@ class TestSetGenerator:
             mdef_diff = self.findMDEFDifference()
             if mdef_diff is not None:
                 if TestWriter.writeTestSets(required_testsuites, mdef_diff, only_select_all=True):
-                    if ResultSetGenerator.executeTestSuite(m_Integration, SQL_SELECT_ALL):
+                    if True or ResultSetGenerator.executeTestSuite(m_Integration, SQL_SELECT_ALL):
                         table_column_values = ResultSetGenerator.parseResultSets(mdef_diff,
                                                                                  required_testsuites[m_Integration][
                                                                                      SQL_SELECT_ALL])
@@ -553,17 +618,17 @@ class TestSetGenerator:
         if self.setupOutputFolder():
             output_folder_path = os.path.abspath(m_OutputFolder)
             envs_folder_path = os.path.abspath(os.path.join(output_folder_path, m_EnvsFolder))
-            if os.path.exists(envs_folder_path):
-                rmtree(envs_folder_path)
-            os.mkdir(envs_folder_path)
+            # if os.path.exists(envs_folder_path):
+            #     rmtree(envs_folder_path)
+            # os.mkdir(envs_folder_path)
             if TestWriter.writeTestEnv(envs_folder_path, self.inputFile.getConnectionString()):
                 for test_suite in in_required_testsuites.keys():
                     curr_test_suite_path = os.path.abspath(os.path.join(output_folder_path, test_suite))
-                    if os.path.exists(curr_test_suite_path):
-                        rmtree(curr_test_suite_path)
-                    os.mkdir(curr_test_suite_path)
-                    os.mkdir(os.path.join(curr_test_suite_path, m_TestSets))
-                    os.mkdir(os.path.join(curr_test_suite_path, m_ResultSets))
+                    # if os.path.exists(curr_test_suite_path):
+                    #     rmtree(curr_test_suite_path)
+                    # os.mkdir(curr_test_suite_path)
+                    # os.mkdir(os.path.join(curr_test_suite_path, m_TestSets))
+                    # os.mkdir(os.path.join(curr_test_suite_path, m_ResultSets))
                 return TestWriter.writeTestSuites(in_required_testsuites)
             else:
                 return False
@@ -610,7 +675,7 @@ class ResultSetGenerator:
         :return: Returns Data with Converted data type
         """
         if in_sqltype in ['SQL_WVARCHAR', 'SQL_TYPE_TIMESTAMP', 'SQL_WLONGVARCHAR']:
-            return str(in_data)
+            return f"\'{str(in_data)}\'"
         elif in_sqltype == 'SQL_BIT':
             return bool(in_data)
         elif in_sqltype == 'SQL_INTEGER':
@@ -618,8 +683,7 @@ class ResultSetGenerator:
         elif in_sqltype == 'SQL_DOUBLE':
             return float(in_data)
         else:
-            return in_data
-
+            return f"\'{str(in_data)}\'"
 
     @staticmethod
     def parseResultSets(in_mdef_diff: MDEF, in_starting_id: int = 1):
@@ -672,6 +736,9 @@ class ResultSetGenerator:
                                 else:
                                     print('Error: Column Name mismatched')
                                     return None
+                            if column_count != len(in_mdef_diff.inTables[test_case_id - in_starting_id][MDEF.m_Columns]):
+                                print('Error: Column Count mismatched')
+                                return None
                 else:
                     return None
             return table_column_values
