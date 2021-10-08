@@ -1,6 +1,8 @@
 import json
 import os
 
+from GenUtility import assure, getEnvVariableValue
+
 # Global Variable
 m_ConnectionString = 'ConnectionString'
 m_DifferenceFindMode = 'DifferenceFindMode'
@@ -18,59 +20,55 @@ P4CLIENT = 'P4CLIENT'
 P4PORT = 'P4PORT'
 
 
-def assure(in_param: dict, in_arg: str, lazy: bool = False):
-    if in_param is not None and in_arg in in_param and in_param[in_arg] is not None:
-        return in_param[in_arg]
-    else:
-        if lazy:
-            return False
-        else:
-            raise Exception(f"Invalid Expression: {in_param}[{in_arg}]")
-
-
-def getEnvVariableValue(in_varname: str):
-    return assure(dict(os.environ), in_varname)
-
-
 class InputReader:
+    """
+    Represents the Input Reader.
+    """
+
     def __init__(self, in_filepath: str):
         if os.path.exists(in_filepath):
             with open(in_filepath, 'r') as file:
                 in_file = json.load(file)
+
             self.inConnectionString = assure(in_file, m_ConnectionString)
             if assure(in_file, m_DifferenceFindMode):
                 if assure(in_file[m_DifferenceFindMode], m_CompareTwoRevisions) and \
-                        (len(in_file[m_DifferenceFindMode][m_CompareTwoRevisions]) == 2 or
-                         len(in_file[m_DifferenceFindMode][m_CompareTwoRevisions]) == 0):
+                        (len(in_file[m_DifferenceFindMode][m_CompareTwoRevisions]) == 2):
                     self.inDifferenceFindMode = m_CompareTwoRevisions
-                    if in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0] < in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]:
-                        self.inOlderMDEFVersion = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0]
-                        self.inNewerMDEFVersion = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]
-                    elif in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0] > in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]:
-                        self.inOlderMDEFVersion = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]
-                        self.inNewerMDEFVersion = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0]
+                    revision = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0]
+                    anotherRevision = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0]
+                    if revision < anotherRevision:
+                        self.inOlderMDEFVersion = revision
+                        self.inNewerMDEFVersion = anotherRevision
+                    elif revision > anotherRevision:
+                        self.inOlderMDEFVersion = anotherRevision
+                        self.inNewerMDEFVersion = revision
                     else:
-                        raise Exception('Error: Invalid Values for `CompareTwoRevisions`. MDEF Revision Numbers must '
-                                        'be different.')
+                        raise Exception(f"Error: Invalid Values for `{m_CompareTwoRevisions}`. "
+                                        "MDEF Revision Numbers must be different.")
                 elif assure(in_file[m_DifferenceFindMode], m_ModifiedMDEFLocation) and \
                         len(in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]) > 0:
                     self.inDifferenceFindMode = m_ModifiedMDEFLocation
                     if os.path.exists(in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]):
                         self.inModifiedMDEFLocation = in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]
                     else:
-                        raise FileNotFoundError(f"{in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]} is not a valid location for {m_ModifiedMDEFLocation}")
+                        raise FileNotFoundError(f"{in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]} "
+                                                f"is not a valid location for {m_ModifiedMDEFLocation}")
 
             if assure(in_file, m_PerforceLocation):
                 if assure(in_file[m_PerforceLocation], m_MDEFLocation) and len(in_file[m_PerforceLocation][m_MDEFLocation]) > 0:
                     if os.path.exists(getEnvVariableValue(P4_ROOT) + in_file[m_PerforceLocation][m_MDEFLocation]):
                         self.inMDEFLocation = in_file[m_PerforceLocation][m_MDEFLocation]
                     else:
-                        raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_MDEFLocation]} is not a valid location for {m_MDEFLocation}")
-                if assure(in_file[m_PerforceLocation], m_TestDefinitionsLocation) and len(in_file[m_PerforceLocation][m_TestDefinitionsLocation]) > 0:
+                        raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_MDEFLocation]} "
+                                                f"is not a valid location for {m_MDEFLocation}")
+                if assure(in_file[m_PerforceLocation], m_TestDefinitionsLocation) and \
+                        len(in_file[m_PerforceLocation][m_TestDefinitionsLocation]) > 0:
                     if os.path.exists(getEnvVariableValue(P4_ROOT) + in_file[m_PerforceLocation][m_MDEFLocation]):
                         self.inTestDefinitionsLocation = in_file[m_PerforceLocation][m_TestDefinitionsLocation]
                     else:
-                        raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_TestDefinitionsLocation]} is not a valid location for {m_TestDefinitionsLocation}")
+                        raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_TestDefinitionsLocation]} "
+                                                f"is not a valid location for {m_TestDefinitionsLocation}")
 
             if assure(in_file, m_TestSuite):
                 self.inRequiredTestSuites = dict()
