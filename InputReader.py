@@ -7,6 +7,7 @@ from GenUtility import assure, getEnvVariableValue
 m_ConnectionString = 'ConnectionString'
 m_DifferenceFindMode = 'DifferenceFindMode'
 m_CompareTwoRevisions = 'CompareTwoRevisions'
+m_ExternalArguments = 'ExternalArguments'
 m_ModifiedMDEFLocation = 'ModifiedMDEFLocation'
 m_PerforceLocation = 'PerforceLocation'
 m_MDEFLocation = 'MDEFLocation'
@@ -36,7 +37,7 @@ class InputReader:
                         (len(in_file[m_DifferenceFindMode][m_CompareTwoRevisions]) == 2):
                     self.inDifferenceFindMode = m_CompareTwoRevisions
                     revision = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0]
-                    anotherRevision = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][0]
+                    anotherRevision = in_file[m_DifferenceFindMode][m_CompareTwoRevisions][1]
                     if revision < anotherRevision:
                         self.inOlderMDEFVersion = revision
                         self.inNewerMDEFVersion = anotherRevision
@@ -78,6 +79,12 @@ class InputReader:
                         if starting_id > 0:
                             required_test_sets[test_set] = starting_id
                     self.inRequiredTestSuites[test_suite] = required_test_sets
+
+            if assure(in_file, m_ExternalArguments):
+                self.inExternalArguments = dict()
+                for test_suite, args_map in in_file[m_ExternalArguments].items():
+                    if len(args_map) > 0:
+                        self.inExternalArguments[test_suite] = args_map
         else:
             raise FileNotFoundError(f"{in_filepath} not found")
 
@@ -113,3 +120,6 @@ class InputReader:
 
     def getRequiredTestSuites(self):
         return self.inRequiredTestSuites
+
+    def getExternalArguments(self):
+        return self.inExternalArguments

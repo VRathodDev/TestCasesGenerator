@@ -5,30 +5,30 @@ import re
 import subprocess
 import xml.etree.ElementTree as Etree
 from shutil import copytree, copy, move, rmtree
-from enum import Enum, auto
+from enum import Enum
 
 from InputReader import InputReader, m_ModifiedMDEFLocation, m_CompareTwoRevisions, P4USER, P4_ROOT, P4PORT, P4CLIENT
 from GenUtility import assure, getEnvVariableValue, checkFilesInDir, copyFilesInDir, PerforceUtility
 
 
 class TestSuites(Enum):
-    Integration = auto
-    SP = auto
-    DML = auto
-    SQL = auto
+    Integration = 'Integration'
+    SP = 'SP'
+    DML = 'DML'
+    SQL = 'SQL'
 
 
 class TestSets(Enum):
-    SQL_SELECT_ALL = auto
-    SQL_PASSDOWN = auto
-    SQL_SP = auto
-    SQL_AND_OR = auto
-    SQL_FUNCTION_1TABLE = auto
-    SQL_GROUP_BY = auto
-    SQL_IN_BETWEEN = auto
-    SQL_LIKE = auto
-    SQL_ORDER_BY = auto
-    SQL_SELECT_TOP = auto
+    SQL_SELECT_ALL = 'SQL_SELECT_ALL'
+    SQL_PASSDOWN = 'SQL_PASSDOWN'
+    SQL_SP = 'SQL_SP'
+    SQL_AND_OR = 'SQL_AND_OR'
+    SQL_FUNCTION_1TABLE = 'SQL_FUNCTION_1TABLE'
+    SQL_GROUP_BY = 'SQL_GROUP_BY'
+    SQL_IN_BETWEEN = 'SQL_IN_BETWEEN'
+    SQL_LIKE = 'SQL_LIKE'
+    SQL_ORDER_BY = 'SQL_ORDER_BY'
+    SQL_SELECT_TOP = 'SQL_SELECT_TOP'
 
 
 # Global Variables
@@ -271,10 +271,11 @@ class TestWriter:
             return False
 
     @staticmethod
-    def writeTestSets(inRequiredTestSuites: dict, inMdefDiff: MDEF, onlySelectAll: bool = False,
+    def writeTestSets(inRequiredTestSuites: dict, inMdefDiff: MDEF, inExternalArgs: dict, onlySelectAll: bool = False,
                       inTableColumnsValues: dict = None):
         """
         Prepares required TestSets for given TestSuites \n
+        :param inExternalArgs: External Arguments containing the input params for SP.
         :param inTableColumnsValues: Table Column Values Mapping
         :param onlySelectAll: A Flag to only generate test sets for SQL_SELECT_ALL
         :param inMdefDiff: MDEF Instance
@@ -290,41 +291,62 @@ class TestWriter:
             hadFailure = False
             for testSuite, testSets in inRequiredTestSuites.items():
                 for testSet, startingId in testSets.items():
-                    if testSet == TestSets.SQL_SELECT_ALL.name and onlySelectAll:
+                    if testSet == TestSets.SQL_SELECT_ALL.value and onlySelectAll:
                         return TestWriter.writeSelectAllTestSets(testSuite, inMdefDiff, startingId)
 
-                    elif testSet == TestSets.SQL_PASSDOWN.name:
+                    elif testSet == TestSets.SQL_PASSDOWN.value:
                         hadFailure = not TestWriter.writeSQLPassdownTestsets(testSuite, inMdefDiff,
                                                                              inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_SELECT_TOP.name:
+                    elif testSuite == TestSuites.SP.value and testSet == TestSets.SQL_SP.value:
+                        hadFailure = not TestWriter.writeSPTestSets(testSuite, inExternalArgs[testSuite], startingId)
+
+                    elif testSet == TestSets.SQL_SELECT_TOP.value:
                         hadFailure = not TestWriter.writeSQLSelectTopTestsets(testSuite,
                                                                               inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_AND_OR.name:
+                    elif testSet == TestSets.SQL_AND_OR.value:
                         hadFailure = not TestWriter.writeSQLAndOrTestsets(testSuite,
                                                                               inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_ORDER_BY.name:
+                    elif testSet == TestSets.SQL_ORDER_BY.value:
                         hadFailure = not TestWriter.writeSQLOrderByTestsets(testSuite,
                                                                             inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_FUNCTION_1TABLE.name:
+                    elif testSet == TestSets.SQL_FUNCTION_1TABLE.value:
                         hadFailure = not TestWriter.writeSQLFunctionTestsets(testSuite,
                                                                              inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_GROUP_BY.name:
+                    elif testSet == TestSets.SQL_GROUP_BY.value:
                         hadFailure = not TestWriter.writeSQLGroupByTestsets(testSuite, inTableColumnsValues,
                                                                             startingId)
-                    elif testSet == TestSets.SQL_IN_BETWEEN.name:
+                    elif testSet == TestSets.SQL_IN_BETWEEN.value:
                         hadFailure = not TestWriter.writeSQLInBetweenTestsets(testSuite, inTableColumnsValues,
                                                                               startingId)
-                    elif testSet == TestSets.SQL_LIKE.name:
+                    elif testSet == TestSets.SQL_LIKE.value:
                         hadFailure = not TestWriter.writeSQLLikeTestsets(testSuite, inTableColumnsValues, startingId)
 
                     if hadFailure:
                         print(f"Error: Generation of {testSet} for {testSuite} failed")
                         break
 
-                return not hadFailure
+            return not hadFailure
         else:
             print('Error: No Test-Suites selected to prepare')
             return False
+
+    @staticmethod
+    def writeSPTestSets(inTestSuite: str, inExternalArguments: dict, inStartingID: int = 1):
+        """
+        Prepares Test Set for `SQL_SELECT_All`\n
+        :param inExternalArguments: Stored Procedure Name and Input arguments mapping.
+        :param inStartingID: Starting Id of the test-set to write testcases further
+        :param inTestSuite: Name of associated Testsuite
+        :return: Returns True if all `SQL_SELECT_All` generated successfully else False
+        """
+        if len(inTestSuite) == 0 or inExternalArguments is None:
+            print('Error: Invalid Parameters')
+            return False
+        else:
+            queries = list()
+            for name, arg in inExternalArguments.items():
+                queries.append('{call ' + name + '(' + arg + ')}')
+            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_SP.name, queries, inStartingID)
 
     @staticmethod
     def writeSelectAllTestSets(inTestSuite: str, inMdefDiff: MDEF, inStartingID: int = 1):
@@ -615,16 +637,17 @@ class TestSetGenerator:
 
     def run(self):
         requiredTestSuites = self.inputFile.getRequiredTestSuites()
+        externalArgs = self.inputFile.getExternalArguments()
         if self.setupTestFolders(requiredTestSuites):
             mdefDiff = self.findMDEFDifference()
             if mdefDiff is not None:
-                if TestWriter.writeTestSets(requiredTestSuites, mdefDiff, onlySelectAll=True):
-                    if True or ResultSetGenerator.executeTestSuite(TestSuites.Integration.name, TestSets.SQL_SELECT_ALL.name):
+                if TestWriter.writeTestSets(requiredTestSuites, mdefDiff, externalArgs, onlySelectAll=True):
+                    if ResultSetGenerator.executeTestSuite(TestSuites.Integration.name, TestSets.SQL_SELECT_ALL.name):
                         tableColumnValues = ResultSetGenerator.parseResultSets(
                             mdefDiff, requiredTestSuites[TestSuites.Integration.name][TestSets.SQL_SELECT_ALL.name]
                         )
                         if tableColumnValues is not None and len(tableColumnValues) > 0:
-                            return TestWriter.writeTestSets(requiredTestSuites, mdefDiff, False, tableColumnValues)
+                            return TestWriter.writeTestSets(requiredTestSuites, mdefDiff, externalArgs, False, tableColumnValues)
 
     def findMDEFDifference(self):
         mdefDiffMode = self.inputFile.getMDEFDifferenceFindMode()
@@ -696,17 +719,17 @@ class TestSetGenerator:
         if self.setupOutputFolder():
             outputFolderPath = os.path.abspath(m_OutputFolder)
             envsFolderPath = os.path.abspath(os.path.join(outputFolderPath, m_EnvsFolder))
-            # # if os.path.exists(envsFolderPath):
-            # #     rmtree(envsFolderPath)
-            # os.mkdir(envsFolderPath)
+            if os.path.exists(envsFolderPath):
+                rmtree(envsFolderPath)
+            os.mkdir(envsFolderPath)
             if TestWriter.writeTestEnv(envsFolderPath, self.inputFile.getConnectionString()):
                 for testSuite in inRequiredTestSuites.keys():
-                    currRestSuitePath = os.path.abspath(os.path.join(outputFolderPath, testSuite))
-                    # if os.path.exists(currRestSuitePath):
-                    #     rmtree(currRestSuitePath)
-                    # os.mkdir(currRestSuitePath)
-                    # os.mkdir(os.path.join(currRestSuitePath, m_TestSets))
-                    # os.mkdir(os.path.join(currRestSuitePath, m_ResultSets))
+                    currTestSuitePath = os.path.abspath(os.path.join(outputFolderPath, testSuite))
+                    if os.path.exists(currTestSuitePath):
+                        rmtree(currTestSuitePath)
+                    os.mkdir(currTestSuitePath)
+                    os.mkdir(os.path.join(currTestSuitePath, m_TestSets))
+                    os.mkdir(os.path.join(currTestSuitePath, m_ResultSets))
                 return TestWriter.writeTestSuites(inRequiredTestSuites)
             else:
                 return False
@@ -734,12 +757,14 @@ class ResultSetGenerator:
         :return: True if succeeded else False
         """
         if len(inTestSuite) > 0:
-            touchstone_cmd = f"{os.path.join(m_OutputFolder, m_TouchStone)} -te {m_EnvsFolder}\\{m_TestEnv} " \
+            touchstone_cmd = f"{m_TouchStone} -te {m_EnvsFolder}\\{m_TestEnv} " \
                              f"-ts {inTestSuite}\\{m_TestSuite} -o {inTestSuite}"
             if withSpecificTestSet is not None and len(withSpecificTestSet) > 0:
                 touchstone_cmd += f" -rts {withSpecificTestSet}"
-            # subprocess.call(touchstone_cmd)
-            print(touchstone_cmd)
+            currentDir = os.path.abspath(os.curdir)
+            os.chdir(m_OutputFolder)
+            subprocess.call(touchstone_cmd)
+            os.chdir(currentDir)
             return True if len(os.listdir(os.path.join(os.path.join(m_OutputFolder, inTestSuite), m_ResultSets))) > 0 \
                 else False
         else:

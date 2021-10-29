@@ -1,5 +1,3 @@
-import json
-import sys
 from Generator import TestSetGenerator, ResultSetGenerator
 
 
@@ -18,7 +16,7 @@ class Runner:
 
 
 if __name__ == '__main__':
-    Runner().run(m_TestSetsOption)
+    Runner().run(m_ResultSetsOption)
     # if len(sys.argv) < 2:
     #     raise RuntimeError("Missing mode parameter.")
     # mode = sys.argv[1].lower()
