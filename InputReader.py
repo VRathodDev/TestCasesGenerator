@@ -9,6 +9,7 @@ m_DifferenceFindMode = 'DifferenceFindMode'
 m_CompareTwoRevisions = 'CompareTwoRevisions'
 m_ExternalArguments = 'ExternalArguments'
 m_ModifiedMDEFLocation = 'ModifiedMDEFLocation'
+m_IsFirstRevision = 'IsFirstRevision'
 m_PerforceLocation = 'PerforceLocation'
 m_MDEFLocation = 'MDEFLocation'
 m_TestDefinitionsLocation = 'TestDefinitionsLocation'
@@ -52,6 +53,7 @@ class InputReader:
                     self.inDifferenceFindMode = m_ModifiedMDEFLocation
                     if os.path.exists(in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]):
                         self.inModifiedMDEFLocation = in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]
+                        self.inFirstRevision = assure(in_file[m_DifferenceFindMode], m_IsFirstRevision)
                     else:
                         raise FileNotFoundError(f"{in_file[m_DifferenceFindMode][m_ModifiedMDEFLocation]} "
                                                 f"is not a valid location for {m_ModifiedMDEFLocation}")
@@ -76,8 +78,10 @@ class InputReader:
                 for test_suite in in_file[m_TestSuite]:
                     required_test_sets = dict()
                     for test_set, starting_id in in_file[m_TestSuite][test_suite].items():
-                        if starting_id > 0:
+                        if starting_id > 0 and not self.inFirstRevision:
                             required_test_sets[test_set] = starting_id
+                        else:
+                            required_test_sets[test_set] = 1
                     self.inRequiredTestSuites[test_suite] = required_test_sets
 
             if assure(in_file, m_ExternalArguments):
@@ -111,6 +115,9 @@ class InputReader:
             return self.inModifiedMDEFLocation
         else:
             return None
+
+    def isFirstRevision(self):
+        return self.inFirstRevision
 
     def getTestDefinitionLocation(self, in_perforce_loc: bool = False):
         if in_perforce_loc:

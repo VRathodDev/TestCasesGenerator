@@ -46,7 +46,6 @@ TOUCHSTONE_DIR = getEnvVariableValue('TOUCHSTONE_DIR')
 
 
 class MDEF:
-
     # MDEF Variables
     m_StoredProcedures = 'StoredProcedures'
     m_Tables = 'Tables'
@@ -164,7 +163,8 @@ class MDEF:
                         apiAccesses = list()
                         for apiAccess in table[MDEF.m_APIAccess]:
                             if apiAccess in MDEF.m_APIAccesses:
-                                columns_req = assure(table[MDEF.m_APIAccess][apiAccess], MDEF.m_ColumnRequirements, True)
+                                columns_req = assure(table[MDEF.m_APIAccess][apiAccess], MDEF.m_ColumnRequirements,
+                                                     True)
                                 apiAccesses.append({
                                     apiAccess: columns_req if columns_req else []
                                 })
@@ -305,7 +305,7 @@ class TestWriter:
                                                                               inTableColumnsValues, startingId)
                     elif testSet == TestSets.SQL_AND_OR.value:
                         hadFailure = not TestWriter.writeSQLAndOrTestsets(testSuite,
-                                                                              inTableColumnsValues, startingId)
+                                                                          inTableColumnsValues, startingId)
                     elif testSet == TestSets.SQL_ORDER_BY.value:
                         hadFailure = not TestWriter.writeSQLOrderByTestsets(testSuite,
                                                                             inTableColumnsValues, startingId)
@@ -386,9 +386,8 @@ class TestWriter:
                     continue
                 for columnName in passdownableColumns:
                     for columnValue in inTableColumnsValues[tableName][columnName]:
-                        if columnValue is not None and len(columnValue) > 0:
-                            queries.append(f"SELECT * FROM {tableName} WHERE {columnName} = {columnValue}")
-                            break
+                        queries.append(f"SELECT * FROM {tableName} WHERE {columnName} = {columnValue}")
+                        break
             return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_PASSDOWN.name, queries, inStartingID)
 
     @staticmethod
@@ -467,7 +466,7 @@ class TestWriter:
             queries = list()
             for tableName, columns in inTableColumnsValues.items():
                 columnsLen = len(columns)
-                requiredColIndex = random.randrange(0, (columnsLen % 10) - 1) if columnsLen % 10 == 0 else 0
+                requiredColIndex = random.randrange(0, (columnsLen % 10) - 1) if columnsLen % 10 > 1 else 0
                 index = 0
                 if columnsLen > 0:
                     for columnName in columns:
@@ -497,7 +496,7 @@ class TestWriter:
                 if len(columns) > 0:
                     for columnName in columns:
                         if len(columns[columnName]) > 0:
-                            queries.append(f"SELECT DISTINCT {columnName} FROM {tableName} GROUP BY {columnName} "
+                            queries.append(f"SELECT {columnName} FROM {tableName} GROUP BY {columnName} "
                                            f"HAVING {columnName} = {columns[columnName][0]}")
                             break
                     else:
@@ -522,13 +521,14 @@ class TestWriter:
             for tableName, columns in inTableColumnsValues.items():
                 for columnName in columns:
                     totalColumnValues = len(columns[columnName])
-                    if totalColumnValues > 0:
+                    if totalColumnValues > 2 and any(
+                            map(lambda columnValue: isinstance(columnValue, str), columns[columnName])):
                         if totalColumnValues % 2 == 0:
                             queries.append(f"SELECT * FROM {tableName} WHERE {columnName} IN "
-                                           f"({', '.join(columns[columnName][0 : totalColumnValues % 3])})")
+                                           f"({', '.join(random.sample(columns[columnName], 2))})")
                         else:
                             queries.append(f"SELECT {columnName} FROM {tableName} WHERE {columnName} IN "
-                                           f"({', '.join(columns[columnName][0 : totalColumnValues % 3])})")
+                                           f"({', '.join(random.sample(columns[columnName], 2))})")
                         break
             return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_IN_BETWEEN.name, queries, inStartingID)
         else:
@@ -550,14 +550,15 @@ class TestWriter:
             for tableName, columns in inTableColumnsValues.items():
                 for columnName, columnValues in columns.items():
                     for columnVal in columnValues:
-                        if isinstance(columnVal, str) and len(columnVal) > 0:
+                        if isinstance(columnVal, str) and len(columnVal) > 2:
                             queries.append(f"SELECT {columnName} FROM {tableName} WHERE {columnName} LIKE "
-                                           f"'%{columnVal[random.randint(1, len(columnVal) - 1)]}{random.choice(['_', '%', ''])}'")
+                                           f"'%{columnVal[random.randint(1, len(columnVal) - 2)]}{random.choice(['_', '%', ''])}'")
                             queryWritten = True
                         elif isinstance(columnVal, (int, float)):
                             columnValStr = str(columnVal)
-                            queries.append(f"SELECT {columnName} FROM {tableName} WHERE {columnName} LIKE "
-                                           f"'%{columnValStr[random.randint(1, len(columnValStr) - 1)]}{random.choice(['_', '%', ''])}'")
+                            if len(columnValStr) > 2:
+                                queries.append(f"SELECT {columnName} FROM {tableName} WHERE {columnName} LIKE "
+                                               f"'%{columnValStr[random.randint(1, len(columnValStr) - 2)]}{random.choice(['_', '%', ''])}'")
                             queryWritten = True
                         break
                     if queryWritten:
@@ -579,21 +580,23 @@ class TestWriter:
         if len(inTestSuite) > 0 and inTableColumnsValues is not None:
             queries = list()
             aggregateFunctions = ['MAX', 'MIN', 'COUNT', 'SUM', 'AVG']
+            datetimeRegex = '\'([0-9]+)-([0-9]+)-([0-9]+) ([0-9]+):([0-9]+):([0-9]+).([0-9]+)\''
             for tableName, columns in inTableColumnsValues.items():
+                query_written = False
                 for columnName, columnValues in columns.items():
-                    if any(map(lambda inToken: inToken in columnName.lower(), ['id', 'index'])):
+                    if any(map(lambda inToken: inToken in columnName.lower(), ['id', 'index'])) or len(columnValues) == 0:
                         pass
-                    elif all(map(lambda inVal: isinstance(inVal, (int, float)) and (not isinstance(inVal, bool)),
+                    elif all(map(lambda inVal: isinstance(inVal, (int, float)) and (not isinstance(inVal, (bool, str))),
                                  columnValues)):
                         currOp = random.choice(aggregateFunctions)
                         queries.append(f"SELECT {currOp}({columnName}) AS {currOp}_OF_{columnName.upper()}"
                                        f" FROM {tableName}")
                         break
-                    elif all(map(lambda inVal: isinstance(inVal, str) and re.match('\'([0-9]+)\'', inVal) is None,
-                                 columnValues)):
-                        currOp = random.choice(['UCASE', 'LCASE'])
+                    elif not query_written and all(map(lambda inVal: isinstance(inVal, str) and
+                                                                     re.match(datetimeRegex, inVal) is None, columnValues)):
+                        currOp = random.choice(['UCASE', 'LCASE', 'COUNT'])
                         queries.append(f"SELECT {currOp}({columnName}) FROM {tableName}")
-                        break
+                        query_written = True
             return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_FUNCTION_1TABLE.name, queries, inStartingID)
         else:
             print('Error: Invalid Parameters')
@@ -602,7 +605,7 @@ class TestWriter:
     @staticmethod
     def _prepareTestSet(inTestSuite: str, inTestSet: str, inQueries: list, inStartingID: int = 1):
         """
-        Prepares a new Testset file for given queries \n
+        Prepares a new Test-set file for given queries \n
         :param inTestSuite: Name of the Test Suite
         :param inTestSet: Name of the Test Set
         :param inQueries: List of queries
@@ -647,7 +650,8 @@ class TestSetGenerator:
                             mdefDiff, requiredTestSuites[TestSuites.Integration.name][TestSets.SQL_SELECT_ALL.name]
                         )
                         if tableColumnValues is not None and len(tableColumnValues) > 0:
-                            return TestWriter.writeTestSets(requiredTestSuites, mdefDiff, externalArgs, False, tableColumnValues)
+                            return TestWriter.writeTestSets(requiredTestSuites, mdefDiff, externalArgs, False,
+                                                            tableColumnValues)
 
     def findMDEFDifference(self):
         mdefDiffMode = self.inputFile.getMDEFDifferenceFindMode()
@@ -677,14 +681,13 @@ class TestSetGenerator:
         else:
             modifedMdefLoc = self.inputFile.getModifiedMDEFLocation()
             if modifedMdefLoc is not None:
-                if modifedMdefLoc == self.inputFile.getMDEFLocation(in_perforce_loc=False):
-                    # Try to backup the MDEF
-                    raise Exception(f"Move MDEF from this {self.inputFile.getModifiedMDEFLocation()} location.")
+                if self.inputFile.isFirstRevision():
+                    return MDEF(inFilePath=modifedMdefLoc, withColumns=True)
                 else:
                     latestMdefLoc = PerforceUtility.getRevision(self.inputFile.getMDEFLocation())
                     latestMdef = MDEF(latestMdefLoc) if latestMdefLoc is not None else None
-                modifedMdef = MDEF(modifedMdefLoc)
-                mdefDiff = modifedMdef.findDifference(latestMdef)
+                    modifedMdef = MDEF(modifedMdefLoc)
+                    mdefDiff = modifedMdef.findDifference(latestMdef)
                 if mdefDiff is not None:
                     return MDEF(inFileContent=mdefDiff, withColumns=True)
                 else:
@@ -844,7 +847,8 @@ class ResultSetGenerator:
                                     print('Error: Column Name mismatched')
                                     return None
                             if columnCount != len(inMdefDiff.Tables[testCaseId - inStartingID][MDEF.m_Columns]):
-                                print('Error: Column Count mismatched')
+                                print(
+                                    'Error: Column Count mismatched! There might be duplicate columns in ' + currTableName)
                                 return None
                 else:
                     return None

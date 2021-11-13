@@ -1,8 +1,9 @@
 {
     "ConnectionString": "DSN=Microsoft Hubspot;",
     "DifferenceFindMode": {
-        "CompareTwoRevisions": [15, 16],
-        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Facebook\\Common\\Maintenance\\1.6\\MDEF\\driver-d.mdef"
+        "CompareTwoRevisions": [],
+        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Hubspot\\ODBC\\Maintenance\\1.6\\MPAImpl\\Bin\\w2012r2\\vs2013\\debug64mt\\driver.mdef",
+        "IsFirstRevision": false
     },
     "PerforceLocation": {
         "MDEFLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/MDEF/driver-d.mdef",
@@ -10,25 +11,35 @@
     },
     "TestSuite": {
         "Integration": {
-            "SQL_SELECT_ALL": 11,
-            "SQL_PASSDOWN": 32
-        },
-        "SP": {
-            "SQL_SP": 32
+            "SQL_SELECT_ALL": 126
         },
         "SQL": {
-            "SQL_AND_OR": 4,
-            "SQL_FUNCTION_1TABLE": 12,
-            "SQL_GROUP_BY": 5,
-            "SQL_IN_BETWEEN": 9,
-            "SQL_LIKE": 10,
-            "SQL_ORDER_BY": 11,
-            "SQL_SELECT_TOP": 12
+            "SQL_FUNCTION_1TABLE": -1
         }
     },
     "ExternalArguments": {
         "SP": {
-            "DummySP": "'Title', 'C:\\Path'"
+            "DoesAutoSaveBufferDiffersFromLiveBlogPost": "'9637957864'",
+            "ValidateAutoSavedBufferVersionOfBlogPost": "'9376830968'",
+            "PushAutoSavedBufferContentToLiveBlogPost": "'30207624445'",
+            "GetSignedURLOfPrivateFile": "8920166786",
+            "CloneHubDBTable": "'5301799', 'Cloned_HubDBTable'",
+            "PublishDraftDataOfTable": "'5301799'",
+            "RevertDraftDataOfTable": "'5301799'",
+            "CreateHubDBTable": "'{\"name\": \"Delete This Table\", \"columns\": [{\"name\": \"Name\", \"type\": \"TEXT\"}]}'",
+            "CloneRowForTable": "'5296483', '58918558548'",
+            "DoesAutoSaveBufferDiffersFromLiveLayout": "'8920087713'",
+            "DoesAutoSaveBufferDiffersFromLivePage": "'57028974910'",
+            "PushAutoSavedBufferContentToLivePage": "'57028974910'",
+            "DoesAutoSaveBufferDiffersFromLiveTemplate": "'8920087700'",
+            "PushAutoSavedBufferContentToLiveTemplate": "'8920087700'",
+            "UpdateGroupOfDeals": "",
+            "GetEmailSubscriptionStatus": "'abc@mail.com'",
+            "CloneMarketingEmail": "59350905938, 'Updated_Test_Marketing_Email'",
+            "RestoreDeletedMarketingEmail": "59350905938",
+            "DoesAutoSaveBufferDiffersFromLiveEmail": "'59350905938'",
+            "GetCalendarContentEvents": "0, 2000000000000",
+            "GetCallEngagementDispositions": ""
         }
     }
 }
