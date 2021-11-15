@@ -1,3 +1,4 @@
+import sys
 from Generator import TestSetGenerator, ResultSetGenerator
 
 
@@ -16,15 +17,13 @@ class Runner:
 
 
 if __name__ == '__main__':
-    Runner().run(m_ResultSetsOption)
-    # if len(sys.argv) < 2:
-    #     raise RuntimeError("Missing mode parameter.")
-    # mode = sys.argv[1].lower()
-    # if mode == m_TestSetsOption:
-    #     runner = Runner()
-    #     runner.run(m_TestSetsOption)
-    # elif mode == m_ResultSetsOption:
-    #     runner = Runner()
-    #     runner.run(m_ResultSetsOption)
-    # else:
-    #     print('Invalid Operation Code')
+    if len(sys.argv) < 2:
+        raise RuntimeError("Missing mode parameter.")
+    mode = sys.argv[1].lower()
+    runner = Runner()
+    if mode == m_TestSetsOption:
+        runner.run(m_TestSetsOption)
+    elif mode == m_ResultSetsOption:
+        runner.run(m_ResultSetsOption)
+    else:
+        print('Invalid Operation Code')

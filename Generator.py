@@ -652,6 +652,10 @@ class TestSetGenerator:
                         if tableColumnValues is not None and len(tableColumnValues) > 0:
                             return TestWriter.writeTestSets(requiredTestSuites, mdefDiff, externalArgs, False,
                                                             tableColumnValues)
+                        else:
+                            print('Error: Failed to generate result-sets of `SQL_SELECT_ALL`')
+            else:
+                print('Warning: Provided MDEFs are identical. No difference found to generate new test-cases.')
 
     def findMDEFDifference(self):
         mdefDiffMode = self.inputFile.getMDEFDifferenceFindMode()
