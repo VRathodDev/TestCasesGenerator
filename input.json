@@ -1,45 +1,38 @@
 {
-    "ConnectionString": "DSN=Microsoft Hubspot;",
+    "ConnectionString": "DSN=Microsoft Shopify;",
     "DifferenceFindMode": {
         "CompareTwoRevisions": [],
-        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Hubspot\\ODBC\\Maintenance\\1.6\\MPAImpl\\Bin\\w2012r2\\vs2013\\debug64mt\\driver.mdef",
+        "ModifiedMDEFLocation": "C:\\Users\\vrathod\\Perforce\\VRathodCurrent\\Drivers\\Memphis\\DataSources\\Shopify\\Common\\Trunk\\Main\\MDEF\\driver-d.mdef",
         "IsFirstRevision": false
     },
     "PerforceLocation": {
-        "MDEFLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/MDEF/driver-d.mdef",
-        "TestDefinitionsLocation": "//Drivers/Memphis/DataSources/Hubspot/Common/Maintenance/1.6/Tests/TestDefinitions/"
+        "MDEFLocation": "//Drivers/Memphis/DataSources/Shopify/Common/Trunk/Main/MDEF/driver-d.mdef"
     },
     "TestSuite": {
         "Integration": {
-            "SQL_SELECT_ALL": 126
+            "SQL_SELECT_ALL": 103,
+            "SQL_PASSDOWN": 51
+        },
+        "SP": {
+            "SQL_SP": 9
         },
         "SQL": {
-            "SQL_FUNCTION_1TABLE": -1
+            "SQL_AND_OR": 161,
+            "SQL_FUNCTION_1TABLE": 882,
+            "SQL_GROUP_BY": 84,
+            "SQL_LIKE": 286,
+            "SQL_IN_BETWEEN": 183,
+            "SQL_ORDER_BY": 58,
+            "SQL_ORDER": 598,
+            "SQL_SELECT_TOP": 27
         }
     },
     "ExternalArguments": {
         "SP": {
-            "DoesAutoSaveBufferDiffersFromLiveBlogPost": "'9637957864'",
-            "ValidateAutoSavedBufferVersionOfBlogPost": "'9376830968'",
-            "PushAutoSavedBufferContentToLiveBlogPost": "'30207624445'",
-            "GetSignedURLOfPrivateFile": "8920166786",
-            "CloneHubDBTable": "'5301799', 'Cloned_HubDBTable'",
-            "PublishDraftDataOfTable": "'5301799'",
-            "RevertDraftDataOfTable": "'5301799'",
-            "CreateHubDBTable": "'{\"name\": \"Delete This Table\", \"columns\": [{\"name\": \"Name\", \"type\": \"TEXT\"}]}'",
-            "CloneRowForTable": "'5296483', '58918558548'",
-            "DoesAutoSaveBufferDiffersFromLiveLayout": "'8920087713'",
-            "DoesAutoSaveBufferDiffersFromLivePage": "'57028974910'",
-            "PushAutoSavedBufferContentToLivePage": "'57028974910'",
-            "DoesAutoSaveBufferDiffersFromLiveTemplate": "'8920087700'",
-            "PushAutoSavedBufferContentToLiveTemplate": "'8920087700'",
-            "UpdateGroupOfDeals": "",
-            "GetEmailSubscriptionStatus": "'abc@mail.com'",
-            "CloneMarketingEmail": "59350905938, 'Updated_Test_Marketing_Email'",
-            "RestoreDeletedMarketingEmail": "59350905938",
-            "DoesAutoSaveBufferDiffersFromLiveEmail": "'59350905938'",
-            "GetCalendarContentEvents": "0, 2000000000000",
-            "GetCallEngagementDispositions": ""
+            "SendAccountInviteToCustomer": "5359875063869",
+            "RetrieveAllCustomersByCustomerSavedSearch": "952970575933",
+            "GetEntityCount": "'products'",
+            "GetDiscountCodeCount": ""
         }
     }
 }

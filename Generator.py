@@ -19,16 +19,16 @@ class TestSuites(Enum):
 
 
 class TestSets(Enum):
-    SQL_SELECT_ALL = 'SQL_SELECT_ALL'
-    SQL_PASSDOWN = 'SQL_PASSDOWN'
-    SQL_SP = 'SQL_SP'
-    SQL_AND_OR = 'SQL_AND_OR'
-    SQL_FUNCTION_1TABLE = 'SQL_FUNCTION_1TABLE'
-    SQL_GROUP_BY = 'SQL_GROUP_BY'
-    SQL_IN_BETWEEN = 'SQL_IN_BETWEEN'
-    SQL_LIKE = 'SQL_LIKE'
-    SQL_ORDER_BY = 'SQL_ORDER_BY'
-    SQL_SELECT_TOP = 'SQL_SELECT_TOP'
+    SQL_SELECT_ALL = ['SQL_SELECT_ALL']
+    SQL_PASSDOWN = ['SQL_PASSDOWN']
+    SQL_SP = ['SQL_SP']
+    SQL_AND_OR = ['SQL_AND_OR']
+    SQL_FUNCTION_1TABLE = ['SQL_FUNCTION_1TABLE']
+    SQL_GROUP_BY = ['SQL_GROUP_BY']
+    SQL_IN_BETWEEN = ['SQL_IN_BETWEEN']
+    SQL_LIKE = ['SQL_LIKE']
+    SQL_ORDER_BY = ['SQL_ORDER_BY', 'SQL_ORDER']
+    SQL_SELECT_TOP = ['SQL_SELECT_TOP']
 
 
 # Global Variables
@@ -291,35 +291,36 @@ class TestWriter:
             hadFailure = False
             for testSuite, testSets in inRequiredTestSuites.items():
                 for testSet, startingId in testSets.items():
-                    if testSet == TestSets.SQL_SELECT_ALL.value and onlySelectAll:
-                        return TestWriter.writeSelectAllTestSets(testSuite, inMdefDiff, startingId)
+                    if testSet in TestSets.SQL_SELECT_ALL.value and onlySelectAll:
+                        return TestWriter.writeSelectAllTestSets(testSuite, testSet, inMdefDiff, startingId)
 
-                    elif testSet == TestSets.SQL_PASSDOWN.value:
-                        hadFailure = not TestWriter.writeSQLPassdownTestsets(testSuite, inMdefDiff,
+                    elif testSet in TestSets.SQL_PASSDOWN.value:
+                        hadFailure = not TestWriter.writeSQLPassdownTestsets(testSuite, testSet, inMdefDiff,
                                                                              inTableColumnsValues, startingId)
-                    elif testSuite == TestSuites.SP.value and testSet == TestSets.SQL_SP.value:
-                        hadFailure = not TestWriter.writeSPTestSets(testSuite, inExternalArgs[testSuite], startingId)
+                    elif testSuite == TestSuites.SP.value and testSet in TestSets.SQL_SP.value:
+                        hadFailure = not TestWriter.writeSPTestSets(testSuite, testSet, inExternalArgs[testSuite], startingId)
 
-                    elif testSet == TestSets.SQL_SELECT_TOP.value:
-                        hadFailure = not TestWriter.writeSQLSelectTopTestsets(testSuite,
+                    elif testSet in TestSets.SQL_SELECT_TOP.value:
+                        hadFailure = not TestWriter.writeSQLSelectTopTestsets(testSuite, testSet,
                                                                               inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_AND_OR.value:
-                        hadFailure = not TestWriter.writeSQLAndOrTestsets(testSuite,
+                    elif testSet in TestSets.SQL_AND_OR.value:
+                        hadFailure = not TestWriter.writeSQLAndOrTestsets(testSuite, testSet,
                                                                           inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_ORDER_BY.value:
-                        hadFailure = not TestWriter.writeSQLOrderByTestsets(testSuite,
+                    elif testSet in TestSets.SQL_ORDER_BY.value:
+                        hadFailure = not TestWriter.writeSQLOrderByTestsets(testSuite, testSet,
                                                                             inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_FUNCTION_1TABLE.value:
-                        hadFailure = not TestWriter.writeSQLFunctionTestsets(testSuite,
+                    elif testSet in TestSets.SQL_FUNCTION_1TABLE.value:
+                        hadFailure = not TestWriter.writeSQLFunctionTestsets(testSuite, testSet,
                                                                              inTableColumnsValues, startingId)
-                    elif testSet == TestSets.SQL_GROUP_BY.value:
-                        hadFailure = not TestWriter.writeSQLGroupByTestsets(testSuite, inTableColumnsValues,
+                    elif testSet in TestSets.SQL_GROUP_BY.value:
+                        hadFailure = not TestWriter.writeSQLGroupByTestsets(testSuite, testSet, inTableColumnsValues,
                                                                             startingId)
-                    elif testSet == TestSets.SQL_IN_BETWEEN.value:
-                        hadFailure = not TestWriter.writeSQLInBetweenTestsets(testSuite, inTableColumnsValues,
+                    elif testSet in TestSets.SQL_IN_BETWEEN.value:
+                        hadFailure = not TestWriter.writeSQLInBetweenTestsets(testSuite, testSet, inTableColumnsValues,
                                                                               startingId)
-                    elif testSet == TestSets.SQL_LIKE.value:
-                        hadFailure = not TestWriter.writeSQLLikeTestsets(testSuite, inTableColumnsValues, startingId)
+                    elif testSet in TestSets.SQL_LIKE.value:
+                        hadFailure = not TestWriter.writeSQLLikeTestsets(testSuite, testSet, inTableColumnsValues,
+                                                                         startingId)
 
                     if hadFailure:
                         print(f"Error: Generation of {testSet} for {testSuite} failed")
@@ -331,9 +332,10 @@ class TestWriter:
             return False
 
     @staticmethod
-    def writeSPTestSets(inTestSuite: str, inExternalArguments: dict, inStartingID: int = 1):
+    def writeSPTestSets(inTestSuite: str, inTestSet: str, inExternalArguments: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_SELECT_All`\n
+        :param inTestSet: Name of test case.
         :param inExternalArguments: Stored Procedure Name and Input arguments mapping.
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -346,12 +348,13 @@ class TestWriter:
             queries = list()
             for name, arg in inExternalArguments.items():
                 queries.append('{call ' + name + '(' + arg + ')}')
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_SP.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
 
     @staticmethod
-    def writeSelectAllTestSets(inTestSuite: str, inMdefDiff: MDEF, inStartingID: int = 1):
+    def writeSelectAllTestSets(inTestSuite: str, inTestSet: str, inMdefDiff: MDEF, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_SELECT_All`\n
+        :param inTestSet: Name of test case.
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
         :param inMdefDiff: Difference of MDEFs as MDEF Instance
@@ -364,12 +367,14 @@ class TestWriter:
             queries = list()
             for table in inMdefDiff.Tables:
                 queries.append(f"SELECT * FROM {table[MDEF.m_Name]}")
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_SELECT_ALL.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
 
     @staticmethod
-    def writeSQLPassdownTestsets(inTestSuite: str, inMdefDiff: MDEF, inTableColumnsValues: dict, inStartingID: int = 1):
+    def writeSQLPassdownTestsets(inTestSuite: str, inTestSet: str, inMdefDiff: MDEF, inTableColumnsValues: dict,
+                                 inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_PASSDOWN` \n
+        :param inTestSet: Name of test case.
         :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -388,12 +393,13 @@ class TestWriter:
                     for columnValue in inTableColumnsValues[tableName][columnName]:
                         queries.append(f"SELECT * FROM {tableName} WHERE {columnName} = {columnValue}")
                         break
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_PASSDOWN.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
 
     @staticmethod
-    def writeSQLSelectTopTestsets(inTestSuite: str, inTableColumnsValues: dict, inStartingID: int = 1):
+    def writeSQLSelectTopTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_SELECT_TOP` \n
+        :param inTestSet: Name of test case.
         :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -414,15 +420,16 @@ class TestWriter:
                 else:
                     print(f"Error: Columns for {table_name} could not be parsed correctly from the ResultSets")
                     return False
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_SELECT_TOP.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
         else:
             print('Error: Invalid Parameters')
             return False
 
     @staticmethod
-    def writeSQLAndOrTestsets(inTestSuite: str, inTableColumnsValues: dict, inStartingID: int = 1):
+    def writeSQLAndOrTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_AND_OR` \n
+        :param inTestSet: Name of test case.
         :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -448,15 +455,16 @@ class TestWriter:
                                 else:
                                     query += 'OR '
                     index += 1
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_AND_OR.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
         else:
             print('Error: Invalid Parameters')
             return False
 
     @staticmethod
-    def writeSQLOrderByTestsets(inTestSuite: str, inTableColumnsValues: dict, inStartingID: int = 1):
+    def writeSQLOrderByTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_ORDER_BY` \n
+        :param inTestSet: Name of test case.
         :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -476,15 +484,16 @@ class TestWriter:
                             else:
                                 queries.append(f"SELECT {columnName} FROM {tableName} ORDER BY {columnName}")
                         index += 1
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_ORDER_BY.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
         else:
             print('Error: Invalid Parameters')
             return False
 
     @staticmethod
-    def writeSQLGroupByTestsets(inTestSuite: str, inTableColumnsValues: dict, inStartingID: int = 1):
+    def writeSQLGroupByTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_GROUP_BY` \n
+        :param inTestSet: Name of test case.
         :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -502,15 +511,16 @@ class TestWriter:
                     else:
                         queries.append(f"SELECT {columnName} FROM {tableName} GROUP BY {columnName} "
                                        f"ORDER BY {columnName}")
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_GROUP_BY.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
         else:
             print('Error: Invalid Parameters')
             return False
 
     @staticmethod
-    def writeSQLInBetweenTestsets(inTestSuite: str, inTableColumnsValues: dict, inStartingID: int = 1):
+    def writeSQLInBetweenTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_IN_BETWEEN` \n
+        :param inTestSet: Name of test case.
         :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -530,15 +540,16 @@ class TestWriter:
                             queries.append(f"SELECT {columnName} FROM {tableName} WHERE {columnName} IN "
                                            f"({', '.join(random.sample(columns[columnName], 2))})")
                         break
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_IN_BETWEEN.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
         else:
             print('Error: Invalid Parameters')
             return False
 
     @staticmethod
-    def writeSQLLikeTestsets(inTestSuite: str, inTableColumnsValues: dict, inStartingID: int = 1):
+    def writeSQLLikeTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_LIKE` \n
+        :param inTestSet: Name of test case.
         :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -563,15 +574,16 @@ class TestWriter:
                         break
                     if queryWritten:
                         break
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_LIKE.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
         else:
             print('Error: Invalid Parameters')
             return False
 
     @staticmethod
-    def writeSQLFunctionTestsets(inTestSuite: str, inTableColumnsValues: dict, inStartingID: int = 1):
+    def writeSQLFunctionTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_Function_Table` \n
+        :param inTestSet: Name of test case.
         :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
         :param inStartingID: Starting Id of the test-set to write testcases further
         :param inTestSuite: Name of associated Testsuite
@@ -597,7 +609,7 @@ class TestWriter:
                         currOp = random.choice(['UCASE', 'LCASE', 'COUNT'])
                         queries.append(f"SELECT {currOp}({columnName}) FROM {tableName}")
                         query_written = True
-            return TestWriter._prepareTestSet(inTestSuite, TestSets.SQL_FUNCTION_1TABLE.name, queries, inStartingID)
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
         else:
             print('Error: Invalid Parameters')
             return False
@@ -703,7 +715,7 @@ class TestSetGenerator:
     def setupOutputFolder(self):
         """
         Makes a directory name `Output` and puts required files of TouchStone with the same by copying from the
-        location environment variable TOUCHSTONE_DIR refers \n
+        location environment variable `TOUCHSTONE_DIR` refers \n
         :return: Returns True if `Output` setup successfully else raises an Exception.
         """
         if m_OutputFolder in os.listdir() and os.path.exists(m_OutputFolder) and os.path.isdir(m_OutputFolder):

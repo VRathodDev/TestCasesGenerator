@@ -83,7 +83,7 @@ class PerforceUtility:
                 outFileName = f"{inFileName}_Head{inFileExtension}"
                 subprocess.call(f"p4.exe print -o {os.path.join(m_DeleteFolder, outFileName)} "
                                 f"{os.path.abspath(inFilePath)}")
-            return os.path.abspath(f"{m_DeleteFolder}/{outFileName}")
+            return os.path.abspath(os.path.join(m_DeleteFolder, outFileName))
         else:
             raise FileNotFoundError(f"{inFilePath} is an invalid location")
 

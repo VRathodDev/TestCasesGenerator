@@ -18,7 +18,8 @@ class Runner:
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        raise RuntimeError("Missing mode parameter.")
+        print("Missing mode parameter.")
+        print("i.e python Runner.py -ts/-rs")
     mode = sys.argv[1].lower()
     runner = Runner()
     if mode == m_TestSetsOption:
@@ -26,4 +27,5 @@ if __name__ == '__main__':
     elif mode == m_ResultSetsOption:
         runner.run(m_ResultSetsOption)
     else:
-        print('Invalid Operation Code')
+        print("Invalid Operation Code")
+        print("i.e python Runner.py -ts/-rs")

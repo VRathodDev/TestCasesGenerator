@@ -65,13 +65,6 @@ class InputReader:
                     else:
                         raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_MDEFLocation]} "
                                                 f"is not a valid location for {m_MDEFLocation}")
-                if assure(in_file[m_PerforceLocation], m_TestDefinitionsLocation) and \
-                        len(in_file[m_PerforceLocation][m_TestDefinitionsLocation]) > 0:
-                    if os.path.exists(getEnvVariableValue(P4_ROOT) + in_file[m_PerforceLocation][m_MDEFLocation]):
-                        self.inTestDefinitionsLocation = in_file[m_PerforceLocation][m_TestDefinitionsLocation]
-                    else:
-                        raise FileNotFoundError(f"{in_file[m_PerforceLocation][m_TestDefinitionsLocation]} "
-                                                f"is not a valid location for {m_TestDefinitionsLocation}")
 
             if assure(in_file, m_TestSuite):
                 self.inRequiredTestSuites = dict()
@@ -118,12 +111,6 @@ class InputReader:
 
     def isFirstRevision(self):
         return self.inFirstRevision
-
-    def getTestDefinitionLocation(self, in_perforce_loc: bool = False):
-        if in_perforce_loc:
-            return self.inTestDefinitionsLocation
-        else:
-            return getEnvVariableValue(P4_ROOT) + self.inTestDefinitionsLocation
 
     def getRequiredTestSuites(self):
         return self.inRequiredTestSuites
