@@ -4,10 +4,10 @@ import random
 import re
 import subprocess
 import xml.etree.ElementTree as Etree
-from shutil import copytree, copy, move, rmtree
+from shutil import rmtree
 from enum import Enum
 
-from InputReader import InputReader, m_ModifiedMDEFLocation, m_CompareTwoRevisions, P4USER, P4_ROOT, P4PORT, P4CLIENT
+from InputReader import InputReader, m_ModifiedMDEFLocation, m_CompareTwoRevisions
 from GenUtility import assure, getEnvVariableValue, checkFilesInDir, copyFilesInDir, PerforceUtility
 
 
@@ -29,6 +29,7 @@ class TestSets(Enum):
     SQL_LIKE = ['SQL_LIKE']
     SQL_ORDER_BY = ['SQL_ORDER_BY', 'SQL_ORDER']
     SQL_SELECT_TOP = ['SQL_SELECT_TOP']
+    SQL_COLUMNS_1TABLE = ['COLUMNS_1TABLE']
 
 
 # Global Variables
@@ -321,6 +322,9 @@ class TestWriter:
                     elif testSet in TestSets.SQL_LIKE.value:
                         hadFailure = not TestWriter.writeSQLLikeTestsets(testSuite, testSet, inTableColumnsValues,
                                                                          startingId)
+                    elif testSet in TestSets.SQL_COLUMNS_1TABLE.value:
+                        hadFailure = not TestWriter.writeSQLColumnTableTestsets(testSuite, testSet,
+                                                                                inTableColumnsValues, startingId)
 
                     if hadFailure:
                         print(f"Error: Generation of {testSet} for {testSuite} failed")
@@ -490,6 +494,35 @@ class TestWriter:
             return False
 
     @staticmethod
+    def writeSQLColumnTableTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
+        """
+        Prepares Test Set for `SQL_COLUMNS_1TABLE` \n
+        :param inTestSet: Name of test case.
+        :param inTableColumnsValues: Key Value Pair Containing Table Name & Column Value Map
+        :param inStartingID: Starting Id of the test-set to write testcases further
+        :param inTestSuite: Name of associated Testsuite
+        :return: Returns True if all 'SQL_COLUMNS_1TABLE' generated successfully else False
+        """
+        if len(inTestSuite) > 0 and inTableColumnsValues is not None:
+            queries = list()
+            for tableName, columns in inTableColumnsValues.items():
+                columnsLen = len(columns)
+                requiredColIndex = random.randrange(0, (columnsLen % 10) - 1) if columnsLen % 10 > 1 else 0
+                index = 0
+                firstColumn = None
+                if columnsLen > 0:
+                    for columnName in columns:
+                        if index == 0:
+                            firstColumn = columnName
+                        if requiredColIndex == index:
+                            queries.append(f"SELECT {columnName} FROM {tableName} ORDER BY {firstColumn}")
+                        index += 1
+            return TestWriter._prepareTestSet(inTestSuite, inTestSet, queries, inStartingID)
+        else:
+            print('Error: Invalid Parameters')
+            return False
+
+    @staticmethod
     def writeSQLGroupByTestsets(inTestSuite: str, inTestSet: str, inTableColumnsValues: dict, inStartingID: int = 1):
         """
         Prepares Test Set for `SQL_GROUP_BY` \n
@@ -605,7 +638,7 @@ class TestWriter:
                                        f" FROM {tableName}")
                         break
                     elif not query_written and all(map(lambda inVal: isinstance(inVal, str) and
-                                                                     re.match(datetimeRegex, inVal) is None, columnValues)):
+                                                   re.match(datetimeRegex, inVal) is None, columnValues)):
                         currOp = random.choice(['UCASE', 'LCASE', 'COUNT'])
                         queries.append(f"SELECT {currOp}({columnName}) FROM {tableName}")
                         query_written = True
@@ -829,7 +862,7 @@ class ResultSetGenerator:
                     rowCount = 0
                     with open(os.path.abspath(os.path.join(resultSetsPath, f"{TestSets.SQL_SELECT_ALL.name}-SQL_QUERY-"
                                                                            f"{testCaseId}{m_TestFilesExtension}"))) as file:
-                        etree = Etree.fromstring(file.read())
+                        etree = Etree.fromstring(file.read().strip())
                         rowDescriptions = None
                         for child in etree.iter('RowDescriptions'):
                             rowDescriptions = child
@@ -845,18 +878,18 @@ class ResultSetGenerator:
                             columnCount = 0
                             for column in etree.iter('Column'):
                                 columnCount += 1
-                                columnName = column[0].text
-                                columnType = column[1].attrib.get('Type')
+                                columnName = column[0].text.strip()
+                                columnType = column[1].attrib.get('Type').strip()
                                 tableColumnValues[currTableName][columnName] = list()
                                 currColumnValues = set()
                                 if columnName in inMdefDiff.Tables[testCaseId - inStartingID][MDEF.m_Columns]:
                                     for i in range(1, rowCount + 1):
                                         columnValue = rowDescriptions[i - 1][columnCount - 1]
                                         if not assure(columnValue.attrib, 'IsNull', ignoreError=True) and \
-                                                columnValue.text is not None and columnValue.text != 'none' and \
-                                                len(columnValue.text) > 0:
+                                                columnValue.text is not None and columnValue.text.strip() != 'none' and \
+                                                len(columnValue.text.strip()) > 0:
                                             currColumnValues.add(
-                                                ResultSetGenerator._convertDataType(columnValue.text, columnType)
+                                                ResultSetGenerator._convertDataType(columnValue.text.strip(), columnType)
                                             )
                                     tableColumnValues[currTableName][columnName] = list(currColumnValues)
                                 else:
@@ -867,5 +900,7 @@ class ResultSetGenerator:
                                     'Error: Column Count mismatched! There might be duplicate columns in ' + currTableName)
                                 return None
                 else:
+                    print('Error: Invalid Path', os.path.join(resultSetsPath, f"{TestSets.SQL_SELECT_ALL.name}-SQL_QUERY-"
+                                                               f"{testCaseId}{m_TestFilesExtension}"), 'doesn\'t exist!')
                     return None
             return tableColumnValues
